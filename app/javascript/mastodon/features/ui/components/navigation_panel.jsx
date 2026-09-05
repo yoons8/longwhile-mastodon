@@ -15,6 +15,8 @@ import BookmarksActiveIcon from '@/material-icons/400-24px/bookmarks-fill.svg?re
 import BookmarksIcon from '@/material-icons/400-24px/bookmarks.svg?react';
 import ExploreActiveIcon from '@/material-icons/400-24px/explore-fill.svg?react';
 import ExploreIcon from '@/material-icons/400-24px/explore.svg?react';
+import GameActiveIcon from '@/material-icons/400-24px/extension-fill.svg?react';
+import GameIcon from '@/material-icons/400-24px/extension.svg?react';
 import ModerationIcon from '@/material-icons/400-24px/gavel.svg?react';
 import HomeActiveIcon from '@/material-icons/400-24px/home-fill.svg?react';
 import HomeIcon from '@/material-icons/400-24px/home.svg?react';
@@ -355,6 +357,7 @@ class NavigationPanel extends Component {
         <ScheduledStatusesLink />
         <ColumnLink transparent to='/bookmarks' icon='bookmarks' iconComponent={BookmarksIcon} activeIconComponent={BookmarksActiveIcon} text={bookmarksLabel} />
         <ColumnLink transparent to='/lists' icon='list-ul' iconComponent={ListAltIcon} activeIconComponent={ListAltActiveIcon} text={listsLabel} />
+        <ColumnLink transparent to='/game' icon='game' iconComponent={GameIcon} activeIconComponent={GameActiveIcon} text='상점' />
         <ColumnLink transparent href={settingsHref} icon='cog' iconComponent={SettingsIcon} text={preferencesLabel} />
         <FollowRequestsLink />
         {includeAccountSwitcher && <AccountSwitcherMenuItem />}

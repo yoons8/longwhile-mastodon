@@ -2,9 +2,13 @@
 
 module Game
   class EconomyService
-    SHELL_GAMES_PER_DAY = 3
+    # 야바위 게임의 계정당 하루 최대 도전 횟수입니다.
+    SHELL_GAMES_PER_DAY = 30
+    # 아이템 판매 시 기준 가격에 적용할 비율입니다. (0.5 = 기준 가격의 50%)
     SALE_RATE = 0.5
+    # 상점주인 대화 1회 성공 시 지급할 재화입니다.
     TALK_CURRENCY = 10
+    # 상점주인 대화 1회 성공 시 지급할 명성입니다.
     TALK_REPUTATION = 1
 
     def initialize(account)

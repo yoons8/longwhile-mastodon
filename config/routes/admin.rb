@@ -96,6 +96,7 @@ namespace :admin do
   resources :rules, only: [:index, :new, :create, :edit, :update, :destroy]
 
   resources :game_items, except: :show
+  resources :game_players, only: [:index, :show, :update]
 
   resources :webhooks do
     member do

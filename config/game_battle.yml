@@ -1,41 +1,123 @@
 default: &default
-  max_hp: 20
+  # 전투 시작 시 참가자에게 부여하는 기본 체력입니다.
+  max_hp: 50
+
+  # 전투가 강제 종료되는 최대 턴 수입니다. 종료 시 남은 체력이 높은 쪽이 승리합니다.
   max_turns: 10
+  
+  # 기본 공격 굴림에 사용할 주사위 개수입니다.
   attack_dice_count: 1
-  attack_dice_sides: 6
-  attack_bonus: 0
-  defense_dice_count: 1
-  defense_dice_sides: 6
-  defense_bonus: 0
+  
+  # 기본 공격 주사위 한 개의 면 수입니다. (15 = 1d15)
+  attack_dice_sides: 15
+  
+  # 기본 공격 굴림 결과에 더하는 고정 보정값입니다.
+  attack_bonus: 5
+  
+  # 기본 방어 굴림에 사용할 주사위 개수입니다.
+  defense_dice_count: 2
+  
+  # 기본 방어 주사위 한 개의 면 수입니다. (6 = 1d6)
+  defense_dice_sides: 3
+  
+  # 기본 방어 굴림 결과에 더하는 고정 보정값입니다.
+  defense_bonus: 7
+  
+  # [복수]로 시작한 전투의 첫 공격에 추가로 적용하는 고정 보정값입니다.
   revenge_attack_bonus: 2
-  winner_currency: 10
-  winner_reputation: 2
-  loser_currency: 2
-  loser_reputation_loss: 1
-  refusal_reputation_loss: 1
+
+  # 전투 승자에게 지급하는 재화입니다.
+  winner_currency: 100
+  
+  # 전투 승자에게 지급하는 명성입니다.
+  winner_reputation: 10
+  
+  # 전투 패자에게 지급하는 소량의 재화입니다.
+  loser_currency: 10
+  
+  # 전투 패자에게서 차감하는 명성입니다.
+  loser_reputation_loss: 3
+  
+  # 전투 신청을 [거절]한 경우 신청자에게서 차감하는 명성입니다.
+  refusal_reputation_loss: 5
+  
+  # 봇 [양도/아이템명] 기능의 계정당 하루 최대 양도 횟수입니다.
+  item_transfer_daily_limit: 3
+  
   messages:
+
+    # 전투 관련 메시지입니다. %{player} 등은 실제 값으로 치환됩니다.
     invalid_command: "사용할 수 없는 전투 키워드입니다."
+    
+    # 전투 신청 시 상대방을 태그하지 않은 경우 표시되는 메시지입니다.
     invalid_target: "봇을 제외한 전투 상대 한 명을 함께 태그해 주세요."
+
+    # 전투 신청 시 상대방이 이미 진행 중인 전투가 있는 경우, 또는 신청자가 이미 진행 중인 전투가 있는 경우 표시되는 메시지입니다.
     already_in_battle: "이미 진행 중인 전투가 있습니다. 기존 전투를 마무리해 주세요."
+    
+    # 전투 신청 시 상대방이 이미 진행 중인 전투가 있는 경우, 또는 신청자가 이미 진행 중인 전투가 있는 경우 표시되는 메시지입니다.
     target_in_battle: "상대방이 이미 전투 중입니다."
+    
+    #전투 신청시 나오는 메시지입니다. %{challenger}와 %{opponent}는 실제 값으로 치환됩니다.
     challenge_created: "%{challenger} 님이 %{opponent} 님에게 전투를 신청했습니다. [승낙] 또는 [거절]을 입력해 주세요."
+    
+    # 전투 신청을 승낙한 경우 표시되는 메시지입니다. %{challenger}와 %{opponent}는 실제 값으로 치환됩니다.
     challenge_accepted: "전투가 시작되었습니다. 양쪽 참가자는 [공격] 또는 [방어]를 입력해 주세요."
+    
+    # 전투 신청을 거절한 경우 표시되는 메시지입니다. %{challenger}와 %{opponent}는 실제 값으로 치환됩니다.
     challenge_rejected: "전투 신청이 거절되었습니다. 신청자의 명성이 감소했습니다."
+    
+    # 전투가 진행 중이 아닌 경우 표시되는 메시지입니다.
     no_battle: "처리할 전투가 없습니다."
+    
+    # 전투 참가자가 아닌 사용자가 행동을 시도할 경우 표시되는 메시지입니다.
     not_your_turn: "이 전투의 참가자만 행동할 수 있습니다."
+    
+    # 이미 입력 했는데 또 입력하려고 할 경우 표시되는 메시지입니다.
     duplicate_action: "이번 턴의 행동은 이미 입력했습니다."
+    
+    # 복수전 첫 턴은 복수 신청자가 먼저 행동해야 합니다.
     awaiting_revenge_attack: "복수전 첫 턴은 복수 신청자가 먼저 행동해야 합니다."
+    
+    # 플레이어가 행동을 선택한 경우 표시되는 메시지입니다. %{player}와 %{action}는 실제 값으로 치환됩니다.
     action_recorded: "%{player} 님이 [%{action}]을 선택했습니다. 상대방의 입력을 기다립니다."
+    
+    # 아이템을 사용할 수 없는 경우 표시되는 메시지입니다. %{player}, %{item}, %{action}는 실제 값으로 치환됩니다.
     item_fallback: "%{player} 님은 사용할 수 있는 %{item}을(를) 보유하지 않아 일반 %{action}(으)로 진행합니다."
+    
+    # 각 턴의 결과를 표시하는 메시지입니다. %{turn}, %{details}, %{challenger}, %{challenger_hp}, %{opponent}, %{opponent_hp}는 실제 값으로 치환됩니다.
     turn_result: "%{turn}턴 결과\n%{details}\n남은 체력: %{challenger} %{challenger_hp} / %{opponent} %{opponent_hp}"
+    
+    # 전투 승리 시 표시되는 메시지입니다. %{winner}는 실제 값으로 치환됩니다.
     battle_won: "전투 종료! %{winner} 님이 승리했습니다."
+    
+    # 10턴 초과 체력 동일로 전투 무승부 시 표시되는 메시지입니다. %{winner}는 실제 값으로 치환됩니다.
     battle_draw: "10턴 종료! 남은 체력이 같아 무승부입니다."
+
+    # 전투 포기 시 표시되는 메시지입니다. %{loser}는 실제 값으로 치환됩니다.
     battle_cancelled: "전투가 포기되어 무효 처리되었습니다. 승패 및 재화·명성 변동은 없습니다."
+    
+    # 복수 전투를 신청할 수 없는 경우 표시되는 메시지입니다. %{challenger}와 %{opponent}는 실제 값으로 치환됩니다.
     revenge_unavailable: "복수 조건을 충족하지 못했습니다. 직전 전투에서 패배한 상대에게만 사용할 수 있습니다."
+    
+    # 복수 전투를 신청한 경우 표시되는 메시지입니다. %{challenger}와 %{opponent}는 실제 값으로 치환됩니다.
     revenge_started: "%{challenger} 님의 복수 공격이 시작되었습니다. 첫 공격에 보너스가 적용됩니다. 상대방은 [공격] 또는 [방어]를 입력해 주세요."
+    
+    # 살해 키워드를 알맞은 곳에 사용하지 않았을때
     kill_unavailable: "[살해]를 사용할 수 있는 전투가 없습니다."
-    kill_script: "승자는 패자에게 마지막 일격을 가합니다."
-    dice_result: "1D6을 굴립니다. 결과는 %{result}입니다."
+    
+    # 살해를 시도한 경우 표시되는 메시지입니다. 이 부분에서 사망과 부활이 같이 이루어집니다. %{challenger}와 %{opponent}는 실제 값으로 치환됩니다.
+    kill_script: "승자는 패자에게 마지막 일격을 가합니다. %{challenger} 님이 %{opponent} 님을 살해했습니다. %{opponent} 님은 부활하여 재화와 명성을 잃습니다."
+
+    # 주사위 굴림 결과를 표시하는 메시지입니다. %{result}는 실제 값으로 치환됩니다.
+    dice_result: "1D6을 굴립니다. 결과는 %{result}입니다." 
+    
+    # 양도 관련 메시지입니다. %{sender}, %{recipient}, %{item}, %{count}, %{limit}는 실제 값으로 치환됩니다.
+    transfer_invalid_target: "봇을 제외한 수신자 한 명을 함께 태그해 주세요."
+    # 양도 성공 시 표시되는 메시지입니다. %{sender}, %{recipient}, %{item}, %{count}, %{limit}는 실제 값으로 치환됩니다.
+    transfer_completed: "%{sender} 님이 %{recipient} 님에게 %{item} 1개를 양도했습니다. 오늘 양도 %{count}/%{limit}회입니다."
+    # 양도 횟수를 모두 사용한 경우 표시되는 메시지입니다. %{limit}는 실제 값으로 치환됩니다.
+    transfer_daily_limit: "오늘 양도 횟수(%{limit}회)를 모두 사용했습니다."
 
 development:
   <<: *default

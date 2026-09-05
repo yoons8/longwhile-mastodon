@@ -1,5 +1,9 @@
 ---
 ko:
+  admin:
+    game_players:
+      reputation_updated: 명성을 수정했습니다.
+      invalid_reputation: 명성은 0 이상의 정수여야 합니다.
   about:
     about_mastodon_html: "한참(longwhile@crepe) 마스토돈 에디션"
     contact_missing: 미설정

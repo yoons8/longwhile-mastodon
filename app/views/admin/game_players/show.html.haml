@@ -1,0 +1,102 @@
+- content_for :page_title do
+  게임 사용자: @#{@account.acct}
+- content_for :heading_actions do
+  = link_to '게임 사용자 목록', admin_game_players_path, class: 'button'
+  = link_to '계정 관리', admin_account_path(@account), class: 'button'
+
+%table.table.horizontal-table
+  %tbody
+    %tr
+      %th 계정
+      %td @#{@account.acct}
+    %tr
+      %th 재화
+      %td= @game_profile.currency
+    %tr
+      %th 명성
+      %td
+        = @game_profile.reputation
+        = simple_form_for @game_profile, url: admin_game_player_path(@game_profile), html: { class: 'inline-form' } do |f|
+          = f.input :reputation, label: '명성', input_html: { min: 0, step: 1 }
+          = f.button :button, '저장', type: :submit, class: 'button'
+    %tr
+      %th 전적
+      %td #{@battle_record[:wins]}승 / #{@battle_record[:losses]}패 / #{@battle_record[:draws]}무
+    %tr
+      %th 게임 시작일
+      %td= l(@game_profile.created_at)
+
+%hr.spacer/
+%h3 소지품
+- item_type_labels = { 'battle' => '전투', 'roleplay' => '역할극', 'miscellaneous' => '기타' }
+%table.table
+  %thead
+    %tr
+      %th 아이템
+      %th 종류
+      %th 소모성
+      %th 수량
+  %tbody
+    - if @inventories.empty?
+      %tr
+        %td{ colspan: 4 } 보유 아이템이 없습니다.
+    - @inventories.each do |inventory|
+      %tr
+        %td= inventory.game_item.name
+        %td= item_type_labels.fetch(inventory.game_item.item_type, inventory.game_item.item_type)
+        %td= inventory.game_item.consumable? ? '예' : '아니오'
+        %td= inventory.quantity
+= paginate @inventories, param_name: :inventory_page
+
+%hr.spacer/
+%h3 최근 전투 전적
+%table.table
+  %thead
+    %tr
+      %th 종료 시각
+      %th 상대
+      %th 결과
+      %th 최종 체력
+  %tbody
+    - if @game_battles.empty?
+      %tr
+        %td{ colspan: 4 } 완료된 전투가 없습니다.
+    - @game_battles.each do |battle|
+      :ruby
+        opponent = battle.opponent_for(@account)
+        result = if battle.winner_account_id.nil?
+          '무승부'
+        elsif battle.winner_account_id == @account.id
+          '승리'
+        else
+          '패배'
+        end
+        own_hp = battle.challenger_account_id == @account.id ? battle.challenger_hp : battle.opponent_hp
+        opponent_hp = battle.challenger_account_id == @account.id ? battle.opponent_hp : battle.challenger_hp
+      %tr
+        %td= l(battle.finished_at)
+        %td @#{opponent.acct}
+        %td= result
+        %td #{own_hp} / #{opponent_hp}
+
+%hr.spacer/
+%h3 최근 게임 변동
+%table.table
+  %thead
+    %tr
+      %th 시각
+      %th 행동
+      %th 아이템
+      %th 재화 변동
+      %th 아이템 변동
+  %tbody
+    - if @game_transactions.empty?
+      %tr
+        %td{ colspan: 5 } 기록이 없습니다.
+    - @game_transactions.each do |transaction|
+      %tr
+        %td= l(transaction.created_at)
+        %td= transaction.action_type
+        %td= transaction.game_item&.name || '-'
+        %td= transaction.currency_change
+        %td= transaction.item_change

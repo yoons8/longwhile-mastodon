@@ -148,4 +148,34 @@ RSpec.describe Game::BattleService do
       expect(GameBotEvent.count).to eq(1)
     end
   end
+
+  describe 'item transfers' do
+    let!(:item) { GameItem.create!(name: '선물상자', base_price: 0, item_type: 'miscellaneous') }
+
+    it 'transfers one owned item, records both sides, and enforces the daily limit' do
+      sender_inventory = GameInventory.create!(account: challenger, game_item: item, quantity: 4)
+
+      3.times do |index|
+        response = process(challenger, "@fighter_two @battle_bot [양도/선물상자] #{index}", targets: [opponent])
+        expect(response[:text]).to include("오늘 양도 #{index + 1}/3회")
+      end
+
+      expect(sender_inventory.reload.quantity).to eq(1)
+      expect(GameInventory.find_by!(account: opponent, game_item: item).quantity).to eq(3)
+      expect(GameDailyUsage.find_by!(account: challenger, action_type: 'item_transfer', usage_date: Time.zone.today).count).to eq(3)
+      expect(GameTransaction.where(account: challenger, action_type: 'transfer_out', game_item: item).count).to eq(3)
+      expect(GameTransaction.where(account: opponent, action_type: 'transfer_in', game_item: item).count).to eq(3)
+
+      response = process(challenger, '@fighter_two @battle_bot [양도/선물상자] 마지막', targets: [opponent])
+      expect(response[:text]).to include('오늘 양도 횟수(3회)를 모두 사용')
+      expect(sender_inventory.reload.quantity).to eq(1)
+    end
+
+    it 'does not consume a daily transfer when the sender does not own the item' do
+      response = process(challenger, '@fighter_two @battle_bot [양도/없는아이템]', targets: [opponent])
+
+      expect(response[:text]).to include('보유하고 있지 않습니다')
+      expect(GameDailyUsage.where(account: challenger, action_type: 'item_transfer').count).to eq(0)
+    end
+  end
 end

@@ -3744,16 +3744,20 @@ body .compose-form .compose-form__uploads {
     order: 10;
   }
 
-  .layout-single-column .column-link[href*="/settings/profile"] {
+  .layout-single-column .column-link[href="/game"] {
     order: 11;
   }
 
+  .layout-single-column .column-link[href*="/settings/profile"] {
+    order: 12;
+  }
+
   .layout-single-column .navigation-panel .navigation-panel__account-switcher {
-    order: 13;
+    order: 14;
   }
 
   .layout-single-column .navigation-panel .column-link[href="/follow_requests"] {
-    order: 12;
+    order: 13;
   }
 
   /* Optional/hidden items */
@@ -3925,6 +3929,11 @@ body .compose-form .compose-form__uploads {
 .layout-single-column .notification__filter-bar .icon.icon-user-plus path,
 .layout-single-column .account__header__tabs__buttons .icon.icon-tasks path,
 .layout-single-column .notification__filter-bar .icon.icon-tasks path {
+  display: block;
+}
+
+/* The shop link uses the original extension icon instead of a themed mask. */
+.layout-single-column .column-link .icon-game path {
   display: block;
 }
 
@@ -4703,18 +4712,22 @@ body .compose-form .compose-form__uploads {
     order: 10;
   }
 
-  .layout-single-column .column-link[href*="/settings"] {
+  .layout-single-column .column-link[href="/game"] {
     order: 11;
   }
 
+  .layout-single-column .column-link[href*="/settings"] {
+    order: 12;
+  }
+
   .layout-single-column .navigation-panel .navigation-panel__account-switcher {
-    order: 13;
+    order: 14;
     flex: 0 0 100%;
     width: 100%;
   }
 
   .layout-single-column .navigation-panel .column-link[href="/follow_requests"] {
-    order: 12;
+    order: 13;
   }
 
   .layout-single-column .navigation-panel__account-switcher .navigation-panel__account-switch-link,
@@ -6358,4 +6371,9 @@ body.layout-single-column
 
 .layout-single-column .search__icon {
   color: var(--color-dim);
+}
+
+/* Keep the custom shop entry immediately after Lists in every sidebar layout. */
+.layout-single-column .navigation-panel__menu .column-link[href="/game"] {
+  order: 11 !important;
 }

@@ -36,6 +36,18 @@ class GameController < ApplicationController
     render json: Game::EconomyService.new(current_account).shell_game!(params[:bet], params[:cup])
   end
 
+  def start_blackjack
+    render json: Game::BlackjackService.new(current_account).start!(params[:bet])
+  end
+
+  def blackjack_hit
+    render json: Game::BlackjackService.new(current_account).hit!(params[:token])
+  end
+
+  def blackjack_stand
+    render json: Game::BlackjackService.new(current_account).stand!(params[:token])
+  end
+
   def start_simon
     render json: Game::SimonService.new(current_account).start!
   end
@@ -56,6 +68,7 @@ class GameController < ApplicationController
 
     {
       profile: { currency: @game_profile.currency, reputation: @game_profile.reputation },
+      blackjack: Game::BlackjackService.new(current_account).state,
       inventory: inventories.map { |inventory| inventory_payload(inventory) },
       shops: [{ id: 0, name: '상점', description: '구매 가능한 아이템입니다.', shop_type: 'normal', items: items.map { |item| shop_item_payload(item) } }],
     }
@@ -68,6 +81,11 @@ class GameController < ApplicationController
       name: item.name,
       description: item.description,
       image: item.image.exists? ? item.image.url(:small) : nil,
+      item_type: item.item_type,
+      battle_action: item.battle_action,
+      dice_count: item.dice_count,
+      dice_sides: item.dice_sides,
+      flat_bonus: item.flat_bonus,
       consumable: item.consumable,
       quantity: inventory.quantity,
       sale_price: (item.base_price * Game::EconomyService::SALE_RATE).floor,
@@ -80,6 +98,11 @@ class GameController < ApplicationController
       name: item.name,
       description: item.description,
       image: item.image.exists? ? item.image.url(:small) : nil,
+      item_type: item.item_type,
+      battle_action: item.battle_action,
+      dice_count: item.dice_count,
+      dice_sides: item.dice_sides,
+      flat_bonus: item.flat_bonus,
       consumable: item.consumable,
       price: item.base_price,
       min_reputation: item.min_reputation,

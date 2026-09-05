@@ -3239,6 +3239,11 @@ body .compose-form .compose-form__uploads {
   display: block;
 }
 
+/* The shop link uses the original extension icon instead of a themed mask. */
+.layout-multiple-columns .column-link .icon-game path {
+  display: block;
+}
+
 /* Home icon */
 .layout-multiple-columns .column-link .icon-home {
   mask-image: url('./bird-theme-svg/home.svg');
@@ -4312,16 +4317,20 @@ body .compose-form .compose-form__uploads {
     order: 10;
   }
 
-  .layout-multiple-columns .column-link[href*="/settings"] {
+  .layout-multiple-columns .column-link[href="/game"] {
     order: 11;
   }
 
+  .layout-multiple-columns .column-link[href*="/settings"] {
+    order: 12;
+  }
+
   .layout-multiple-columns .navigation-panel .navigation-panel__account-switcher {
-    order: 13;
+    order: 14;
   }
 
   .layout-multiple-columns .navigation-panel .column-link[href="/follow_requests"] {
-    order: 12;
+    order: 13;
   }
 }
 
@@ -5622,4 +5631,9 @@ div[tabindex="-1"] + div[tabindex="-1"] > .status__wrapper > .status-reply.statu
 
 .layout-multiple-columns .search__icon {
   color: var(--color-dim);
+}
+
+/* Keep the custom shop entry immediately after Lists in every sidebar layout. */
+.layout-multiple-columns .navigation-panel__menu .column-link[href="/game"] {
+  order: 11 !important;
 }

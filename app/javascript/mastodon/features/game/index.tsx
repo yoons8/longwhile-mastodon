@@ -15,6 +15,11 @@ interface GameItem {
   description: string;
   image: string | null;
   consumable: boolean;
+  item_type?: 'battle' | 'roleplay' | 'miscellaneous';
+  battle_action?: 'attack' | 'defense' | null;
+  dice_count?: number | null;
+  dice_sides?: number | null;
+  flat_bonus?: number;
   quantity?: number;
   price?: number;
   stock?: number | null;
@@ -33,6 +38,7 @@ interface GameState {
   profile: { currency: number; reputation: number };
   inventory: GameItem[];
   shops: GameShop[];
+  blackjack?: BlackjackState | null;
 }
 
 interface SimonState {
@@ -44,12 +50,33 @@ interface SimonState {
   reward?: number;
 }
 
+interface BlackjackCard {
+  rank: string;
+  suit: string;
+}
+
+interface BlackjackState {
+  token?: string;
+  bet: number;
+  player_cards: BlackjackCard[];
+  dealer_cards: BlackjackCard[];
+  player_total: number;
+  dealer_total?: number;
+  can_hit?: boolean;
+  finished?: boolean;
+  outcome?: 'win' | 'lose' | 'push';
+  message?: string;
+  payout?: number;
+  currency?: number;
+}
+
 type Tab = 'shop' | 'gamble';
-type GambleView = 'list' | 'shell' | 'simon';
+type GambleView = 'list' | 'shell' | 'simon' | 'blackjack';
 
 const errorMessage = (error: unknown) => {
   if (typeof error === 'object' && error !== null && 'response' in error) {
-    const response = (error as { response?: { data?: { error?: string } } }).response;
+    const response = (error as { response?: { data?: { error?: string } } })
+      .response;
     if (response?.data?.error) return response.data.error;
   }
 
@@ -58,6 +85,22 @@ const errorMessage = (error: unknown) => {
 
 const delay = (milliseconds: number) =>
   new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+
+const isRedSuit = (suit: string) => suit === '♥' || suit === '♦';
+
+const battleEffectLabel = (item: GameItem) => {
+  const action = item.battle_action === 'defense' ? '방어' : '공격';
+  const effects = [];
+
+  if (item.dice_count && item.dice_sides)
+    effects.push(`주사위 ${item.dice_count}d${item.dice_sides}`);
+  if (item.flat_bonus)
+    effects.push(
+      `고정 보정 ${item.flat_bonus > 0 ? '+' : ''}${item.flat_bonus}`,
+    );
+
+  return `${action} · ${effects.join(' · ') || '보정 없음'}`;
+};
 
 const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
   const [state, setState] = useState<GameState | null>(null);
@@ -76,21 +119,33 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
   const [simonActivePanel, setSimonActivePanel] = useState<number | null>(null);
   const [simonAccepting, setSimonAccepting] = useState(false);
   const [simonMessage, setSimonMessage] = useState('시작 버튼을 누르세요.');
+  const [blackjack, setBlackjack] = useState<BlackjackState | null>(null);
 
   const loadState = useCallback(async () => {
     const response = await api().get<GameState>('/game/state');
     setState(response.data);
-    setSelectedItem((current) => current ?? response.data.shops[0]?.items[0] ?? response.data.inventory[0] ?? null);
+    if (response.data.blackjack) setBlackjack(response.data.blackjack);
+    setSelectedItem(
+      (current) =>
+        current ??
+        response.data.shops[0]?.items[0] ??
+        response.data.inventory[0] ??
+        null,
+    );
   }, []);
 
   useEffect(() => {
-    void loadState().catch((error: unknown) => { setMessage(errorMessage(error)); });
+    void loadState().catch((error: unknown) => {
+      setMessage(errorMessage(error));
+    });
   }, [loadState]);
 
   const selectItem = useCallback((item: GameItem) => {
     setSelectedItem(item);
     const price = item.price === undefined ? '' : ` · ${item.price} 재화`;
-    setMessage(`${item.name} — ${item.description || '설명이 없습니다.'}${price}`);
+    setMessage(
+      `${item.name} — ${item.description || '설명이 없습니다.'}${price}`,
+    );
   }, []);
 
   const openGamble = useCallback(() => {
@@ -100,12 +155,15 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
     setMessage('오늘은 어떤 게임에 도전하시겠습니까?');
   }, []);
 
-  const openGambleGame = useCallback((view: Exclude<GambleView, 'list'>, description: string) => {
-    setGambleView(view);
-    setShellAnswer(null);
-    setShellWon(null);
-    setMessage(description);
-  }, []);
+  const openGambleGame = useCallback(
+    (view: Exclude<GambleView, 'list'>, description: string) => {
+      setGambleView(view);
+      setShellAnswer(null);
+      setShellWon(null);
+      setMessage(description);
+    },
+    [],
+  );
 
   const backToGambleList = useCallback(() => {
     setGambleView('list');
@@ -113,19 +171,26 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
     setMessage('게임을 선택하세요.');
   }, []);
 
-  const act = useCallback(async (path: string, data: Record<string, unknown>, success: (result: Record<string, unknown>) => string) => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const response = await api().post<Record<string, unknown>>(path, data);
-      setMessage(success(response.data));
-      await loadState();
-    } catch (error) {
-      setMessage(errorMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, loadState]);
+  const act = useCallback(
+    async (
+      path: string,
+      data: Record<string, unknown>,
+      success: (result: Record<string, unknown>) => string,
+    ) => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        const response = await api().post<Record<string, unknown>>(path, data);
+        setMessage(success(response.data));
+        await loadState();
+      } catch (error) {
+        setMessage(errorMessage(error));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, loadState],
+  );
 
   const playShellGame = useCallback(async () => {
     if (busy || bet <= 0) return;
@@ -135,11 +200,17 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
     setShellWon(null);
     setMessage('컵을 섞고 있습니다…');
     try {
-      const response = await api().post<{ won: boolean; answer: number; currency_change: number }>('/game/shell_game', { bet, cup });
+      const response = await api().post<{
+        won: boolean;
+        answer: number;
+        currency_change: number;
+      }>('/game/shell_game', { bet, cup });
       await delay(850);
       setShellAnswer(response.data.answer);
       setShellWon(response.data.won);
-      setMessage(`${response.data.won ? '정답입니다!' : '아쉽군요.'} 공은 ${response.data.answer}번 컵 아래에 있습니다. 재화 ${response.data.currency_change >= 0 ? '+' : ''}${response.data.currency_change}`);
+      setMessage(
+        `${response.data.won ? '정답입니다!' : '아쉽군요.'} 공은 ${response.data.answer}번 컵 아래에 있습니다. 재화 ${response.data.currency_change >= 0 ? '+' : ''}${response.data.currency_change}`,
+      );
       await loadState();
     } catch (error) {
       setMessage(errorMessage(error));
@@ -177,108 +248,340 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
     }
   }, [showSequence]);
 
-  const submitSimon = useCallback(async (current: SimonState, input: number[]) => {
-    setSimonAccepting(false);
-    try {
-      const response = await api().post<SimonState>('/game/submit_simon', { token: current.token, sequence: input });
-      const result = response.data;
-      if (!result.success) {
+  const submitSimon = useCallback(
+    async (current: SimonState, input: number[]) => {
+      setSimonAccepting(false);
+      try {
+        const response = await api().post<SimonState>('/game/submit_simon', {
+          token: current.token,
+          sequence: input,
+        });
+        const result = response.data;
+        if (!result.success) {
+          setSimon(null);
+          setSimonMessage('틀렸습니다. 다시 시작해 보세요.');
+        } else if (result.complete) {
+          setSimon(null);
+          setSimonMessage(`성공! ${result.reward ?? 0} 재화를 받았습니다.`);
+          await loadState();
+        } else {
+          setSimon(result);
+          await showSequence(result);
+        }
+      } catch (error) {
         setSimon(null);
-        setSimonMessage('틀렸습니다. 다시 시작해 보세요.');
-      } else if (result.complete) {
-        setSimon(null);
-        setSimonMessage(`성공! ${result.reward ?? 0} 재화를 받았습니다.`);
-        await loadState();
-      } else {
-        setSimon(result);
-        await showSequence(result);
+        setSimonMessage(errorMessage(error));
       }
-    } catch (error) {
-      setSimon(null);
-      setSimonMessage(errorMessage(error));
-    }
-  }, [loadState, showSequence]);
+    },
+    [loadState, showSequence],
+  );
 
-  const chooseSimonPanel = useCallback((panel: number) => {
-    if (!simon || !simonAccepting) return;
-    setSimonActivePanel(panel);
-    window.setTimeout(() => { setSimonActivePanel(null); }, 180);
-    const input = [...simonInput, panel];
-    setSimonInput(input);
-    if (input.length === simon.sequence.length) void submitSimon(simon, input);
-  }, [simon, simonAccepting, simonInput, submitSimon]);
+  const chooseSimonPanel = useCallback(
+    (panel: number) => {
+      if (!simon || !simonAccepting) return;
+      setSimonActivePanel(panel);
+      window.setTimeout(() => {
+        setSimonActivePanel(null);
+      }, 180);
+      const input = [...simonInput, panel];
+      setSimonInput(input);
+      if (input.length === simon.sequence.length)
+        void submitSimon(simon, input);
+    },
+    [simon, simonAccepting, simonInput, submitSimon],
+  );
+
+  const applyBlackjackState = useCallback((nextState: BlackjackState) => {
+    setBlackjack(nextState);
+    setMessage(
+      nextState.finished
+        ? (nextState.message ?? '게임이 종료되었습니다.')
+        : `현재 합계는 ${nextState.player_total}입니다. 히트 또는 스탠드를 선택하세요.`,
+    );
+    const currency = nextState.currency;
+    if (currency !== undefined) {
+      setState((current) =>
+        current
+          ? {
+              ...current,
+              profile: { ...current.profile, currency },
+            }
+          : current,
+      );
+    }
+  }, []);
+
+  const startBlackjack = useCallback(async () => {
+    if (busy || bet <= 0) return;
+
+    setBusy(true);
+    try {
+      const response = await api().post<BlackjackState>(
+        '/game/start_blackjack',
+        {
+          bet,
+        },
+      );
+      applyBlackjackState(response.data);
+      if (!response.data.finished) await loadState();
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }, [applyBlackjackState, bet, busy, loadState]);
+
+  const playBlackjack = useCallback(
+    async (action: 'hit' | 'stand') => {
+      if (busy || !blackjack?.token) return;
+
+      setBusy(true);
+      try {
+        const response = await api().post<BlackjackState>(
+          action === 'hit' ? '/game/blackjack_hit' : '/game/blackjack_stand',
+          { token: blackjack.token },
+        );
+        applyBlackjackState(response.data);
+      } catch (error) {
+        setBlackjack(null);
+        setMessage(errorMessage(error));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [applyBlackjackState, blackjack, busy],
+  );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key >= '1' && event.key <= '4') chooseSimonPanel(Number(event.key) - 1);
+      const target = event.target as HTMLElement | null;
+
+      if (target?.matches('input, textarea, select, [contenteditable="true"]'))
+        return;
+
+      if (
+        gambleView === 'shell' &&
+        !busy &&
+        event.key >= '1' &&
+        event.key <= '3'
+      ) {
+        setCup(Number(event.key));
+        setShellAnswer(null);
+        setShellWon(null);
+      } else if (event.key >= '1' && event.key <= '4') {
+        chooseSimonPanel(Number(event.key) - 1);
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
-    return () => { document.removeEventListener('keydown', handleKeyDown); };
-  }, [chooseSimonPanel]);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [busy, chooseSimonPanel, gambleView]);
 
   return (
     <Column bindToDocument={!multiColumn} label='게임 상점'>
       <ColumnHeader title='' multiColumn={multiColumn} />
       <div className='scrollable game-page'>
         <section className='game-page__shopkeeper' aria-live='polite'>
-          <div className='game-page__portrait' aria-hidden='true'>상점주인</div>
+          <div className='game-page__portrait' aria-hidden='true'>
+            상점주인
+          </div>
           <div className='game-page__shopkeeper-main'>
             <div className='game-page__speech'>
               <p>{message}</p>
-              <span>재화 {state?.profile.currency ?? '—'} · 명성 {state?.profile.reputation ?? '—'}</span>
+              <span>
+                재화 {state?.profile.currency ?? '—'} · 명성{' '}
+                {state?.profile.reputation ?? '—'}
+              </span>
             </div>
             <nav className='game-page__tabs' aria-label='게임 메뉴'>
-              <button type='button' disabled={busy} onClick={() => void act('/game/talk', {}, (result) => String(result.dialogue))}>대화</button>
-              <button type='button' disabled={busy} onClick={() => void act('/game/vend', {}, (result) => `자판기에서 ${String(result.item)}을(를) 얻었습니다.`)}>자판기</button>
-              <button type='button' className={tab === 'shop' ? 'active' : undefined} onClick={() => { setTab('shop'); }}>상점</button>
-              <button type='button' className={tab === 'gamble' ? 'active' : undefined} onClick={openGamble}>갬블</button>
+              <button
+                type='button'
+                disabled={busy}
+                onClick={() =>
+                  void act('/game/talk', {}, (result) =>
+                    String(result.dialogue),
+                  )
+                }
+              >
+                대화
+              </button>
+              <button
+                type='button'
+                disabled={busy}
+                onClick={() =>
+                  void act(
+                    '/game/vend',
+                    {},
+                    (result) =>
+                      `자판기에서 ${String(result.item)}을(를) 얻었습니다.`,
+                  )
+                }
+              >
+                자판기
+              </button>
+              <button
+                type='button'
+                className={tab === 'shop' ? 'active' : undefined}
+                onClick={() => {
+                  setTab('shop');
+                  setMessage(
+                    '구매 가능한 아이템입니다. 원하는 물건을 선택해 보세요.',
+                  );
+                }}
+              >
+                상점
+              </button>
+              <button
+                type='button'
+                className={tab === 'gamble' ? 'active' : undefined}
+                onClick={openGamble}
+              >
+                갬블
+              </button>
             </nav>
           </div>
         </section>
 
-        <main className='game-page__content'>
+        <main
+          className={
+            tab === 'gamble'
+              ? 'game-page__content game-page__content--gamble'
+              : 'game-page__content'
+          }
+        >
           {tab === 'shop' ? (
             <>
               {state?.shops.length === 0 && (
-                <p className='game-page__empty'>현재 이용 가능한 상점이 없습니다.</p>
+                <p className='game-page__empty'>
+                  현재 이용 가능한 상점이 없습니다.
+                </p>
               )}
               {state?.shops.map((shop) => (
-                <section className={`game-page__shop game-page__shop--${shop.shop_type}`} key={shop.id}>
-                  <header><strong>{shop.name}</strong><span>{shop.description}</span></header>
+                <section
+                  className={`game-page__shop game-page__shop--${shop.shop_type}`}
+                  key={shop.id}
+                >
+                  <header>
+                    <strong>{shop.name}</strong>
+                    <span>{shop.description}</span>
+                  </header>
                   <div className='game-page__item-grid'>
                     {shop.items.length === 0 && (
-                      <p className='game-page__empty'>등록된 상점 상품이 없습니다.</p>
+                      <p className='game-page__empty'>
+                        등록된 상점 상품이 없습니다.
+                      </p>
                     )}
                     {shop.items.map((item) => (
-                        <article className={selectedItem?.id === item.id ? 'game-page__item-card active' : 'game-page__item-card'} key={item.id}>
-                          <button type='button' className='game-page__item-select' onClick={() => { selectItem(item); }}>
-                            {item.image ? <img src={item.image} alt='' /> : <span className='game-page__mini-placeholder'>아이템</span>}
-                            <strong>{item.name}</strong>
-                            <span>{item.price} 재화</span>
+                      <article
+                        className={`game-page__item-card game-page__item-card--shop${selectedItem?.id === item.id ? ' active' : ''}`}
+                        key={item.id}
+                      >
+                        <button
+                          type='button'
+                          className='game-page__item-select'
+                          onClick={() => {
+                            selectItem(item);
+                          }}
+                        >
+                          {item.image ? (
+                            <img src={item.image} alt='' />
+                          ) : (
+                            <span className='game-page__mini-placeholder'>
+                              아이템
+                            </span>
+                          )}
+                          <strong>{item.name}</strong>
+                          {item.item_type === 'battle' && (
+                            <span className='game-page__battle-effect'>
+                              {battleEffectLabel(item)}
+                            </span>
+                          )}
+                          {item.item_type !== 'battle' && (
+                            <span className='game-page__battle-effect'>
+                              비전투 아이템
+                            </span>
+                          )}
+                          <span className='game-page__item-price'>
+                            {item.price} 재화
+                          </span>
+                        </button>
+                        <div className='game-page__card-actions'>
+                          <button
+                            type='button'
+                            className='game-page__purchase-button'
+                            disabled={busy}
+                            onClick={() =>
+                              void act(
+                                '/game/purchase',
+                                { game_item_id: item.id },
+                                () => `${item.name}을(를) 구매했습니다.`,
+                              )
+                            }
+                          >
+                            구매
                           </button>
-                          <div className='game-page__card-actions'>
-                            <button type='button' disabled={busy} onClick={() => void act('/game/purchase', { game_item_id: item.id }, () => `${item.name}을(를) 구매했습니다.`)}>구매</button>
-                          </div>
-                        </article>
+                        </div>
+                      </article>
                     ))}
                   </div>
                 </section>
               ))}
               <section className='game-page__shop'>
-                <header><strong>소지품</strong><span>보유 아이템을 선택해 판매할 수 있습니다.</span></header>
+                <header>
+                  <strong>소지품</strong>
+                  <span>보유 아이템을 선택해 판매할 수 있습니다.</span>
+                </header>
                 <div className='game-page__item-grid'>
                   {state?.inventory.length === 0 && (
-                    <p className='game-page__empty'>보유한 아이템이 없습니다.</p>
+                    <p className='game-page__empty'>
+                      보유한 아이템이 없습니다.
+                    </p>
                   )}
                   {state?.inventory.map((item) => (
-                    <article className={selectedItem?.id === item.id ? 'game-page__item-card active' : 'game-page__item-card'} key={item.id}>
-                      <button type='button' className='game-page__item-select' onClick={() => { selectItem(item); }}>
-                        {item.image ? <img src={item.image} alt='' /> : <span className='game-page__mini-placeholder'>아이템</span>}
+                    <article
+                      className={`game-page__item-card game-page__item-card--inventory${selectedItem?.id === item.id ? ' active' : ''}`}
+                      key={item.id}
+                    >
+                      <button
+                        type='button'
+                        className='game-page__item-select'
+                        onClick={() => {
+                          selectItem(item);
+                        }}
+                      >
+                        {item.image ? (
+                          <img src={item.image} alt='' />
+                        ) : (
+                          <span className='game-page__mini-placeholder'>
+                            아이템
+                          </span>
+                        )}
                         <strong>{item.name}</strong>
-                        <span>{item.quantity}개 · 판매가 {item.sale_price}</span>
+                        {item.item_type === 'battle' && (
+                          <span className='game-page__battle-effect'>
+                            {battleEffectLabel(item)}
+                          </span>
+                        )}
+                        <span className='game-page__item-price'>
+                          {item.quantity}개 · 판매가 {item.sale_price}
+                        </span>
                       </button>
                       <div className='game-page__card-actions'>
-                        <button type='button' disabled={busy || !item.quantity} onClick={() => void act('/game/sell', { game_item_id: item.id, quantity: 1 }, () => `${item.name} 1개를 판매했습니다.`)}>판매</button>
+                        <button
+                          type='button'
+                          className='game-page__sell-button'
+                          disabled={busy || !item.quantity}
+                          onClick={() =>
+                            void act(
+                              '/game/sell',
+                              { game_item_id: item.id, quantity: 1 },
+                              () => `${item.name} 1개를 판매했습니다.`,
+                            )
+                          }
+                        >
+                          판매
+                        </button>
                       </div>
                     </article>
                   ))}
@@ -288,53 +591,475 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
           ) : (
             <div className='game-page__games'>
               {gambleView === 'list' && (
-                <div className='game-page__gamble-list'>
-                  <button type='button' onClick={() => { openGambleGame('shell', '컵 아래 숨겨진 공의 위치를 맞혀 보세요. 하루에 세 번 도전할 수 있습니다.'); }}>
-                    <span className='game-page__game-icon' aria-hidden='true'>●</span>
-                    <strong>야바위</strong>
-                  </button>
-                  <button type='button' onClick={() => { openGambleGame('simon', '빛나는 패널의 순서를 기억하고 그대로 입력하세요.'); }}>
-                    <span className='game-page__game-icon' aria-hidden='true'>▦</span>
-                    <strong>Simon 게임</strong>
-                  </button>
-                </div>
+                <>
+                  <header className='game-page__games-intro'>
+                    <span>GAMBLE ROOM</span>
+                    <p>게임을 선택하면 규칙과 진행 화면이 열립니다.</p>
+                  </header>
+                  <div className='game-page__gamble-list'>
+                    <button
+                      type='button'
+                      className='game-page__game-card game-page__game-card--shell'
+                      onClick={() => {
+                        openGambleGame(
+                          'shell',
+                          '컵 아래 숨겨진 공의 위치를 맞혀 보세요. 하루에 세 번 도전할 수 있습니다.',
+                        );
+                      }}
+                    >
+                      <span className='game-page__game-icon' aria-hidden='true'>
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                      <span className='game-page__game-card-copy'>
+                        <em>LUCK</em>
+                        <strong>야바위</strong>
+                        <small>세 개의 컵 중 공이 숨은 곳을 고르세요.</small>
+                      </span>
+                      <span className='game-page__game-card-footer'>
+                        <span>하루 3회 도전</span>
+                        <strong>
+                          게임 시작 <b aria-hidden='true'>→</b>
+                        </strong>
+                      </span>
+                    </button>
+                    <button
+                      type='button'
+                      className='game-page__game-card game-page__game-card--simon'
+                      onClick={() => {
+                        openGambleGame(
+                          'simon',
+                          '빛나는 패널의 순서를 기억하고 그대로 입력하세요.',
+                        );
+                      }}
+                    >
+                      <span
+                        className='game-page__game-icon game-page__game-icon--simon'
+                        aria-hidden='true'
+                      >
+                        <i />
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                      <span className='game-page__game-card-copy'>
+                        <em>MEMORY</em>
+                        <strong>Simon 기억력 게임</strong>
+                        <small>빛나는 패널의 순서를 끝까지 기억하세요.</small>
+                      </span>
+                      <span className='game-page__game-card-footer'>
+                        <span>5라운드 보상</span>
+                        <strong>
+                          게임 시작 <b aria-hidden='true'>→</b>
+                        </strong>
+                      </span>
+                    </button>
+                    <button
+                      type='button'
+                      className='game-page__game-card game-page__game-card--blackjack'
+                      onClick={() => {
+                        openGambleGame(
+                          'blackjack',
+                          '21에 가깝게 만드세요. 딜러보다 높은 숫자가 승리합니다.',
+                        );
+                      }}
+                    >
+                      <span
+                        className='game-page__game-icon game-page__game-icon--blackjack'
+                        aria-hidden='true'
+                      >
+                        <i>
+                          <b>A</b>
+                          <em>♠</em>
+                        </i>
+                        <i>
+                          <b>K</b>
+                          <em>♥</em>
+                        </i>
+                      </span>
+                      <span className='game-page__game-card-copy'>
+                        <em>BLACKJACK</em>
+                        <strong>블랙잭</strong>
+                        <small>21에 가까워지되, 넘지 마세요.</small>
+                      </span>
+                      <span className='game-page__game-card-footer'>
+                        <span>딜러와 승부</span>
+                        <strong>
+                          게임 시작 <b aria-hidden='true'>→</b>
+                        </strong>
+                      </span>
+                    </button>
+                  </div>
+                </>
               )}
 
               {gambleView === 'shell' && (
-                <section className='game-page__game-component'>
-                  <button type='button' className='game-page__back' disabled={busy} onClick={backToGambleList}>← 뒤로</button>
-                  <h3>야바위</h3>
-                  <label>배팅액<input type='number' min={1} value={bet} onChange={(event) => { setBet(Number(event.currentTarget.value)); }} /></label>
-                  <div className={shellShuffling ? 'game-page__cups game-page__cups--shuffling' : 'game-page__cups'}>
-                    {[1, 2, 3].map((number) => (
-                      <button type='button' className={cup === number ? 'active' : undefined} disabled={busy} aria-pressed={cup === number} key={number} onClick={() => { setCup(number); setShellAnswer(null); setShellWon(null); }}>
-                        <span className='game-page__cup' aria-hidden='true'>⌒</span>
-                        <span>{number}번 컵</span>
-                        {shellAnswer === number && <span className='game-page__ball' aria-label='공'>●</span>}
-                      </button>
-                    ))}
+                <section className='game-page__game-component game-page__shell-game'>
+                  <div className='game-page__game-toolbar'>
+                    <header className='game-page__game-header'>
+                      <div>
+                        <h3>야바위</h3>
+                        <p>공이 숨은 컵 하나를 고르세요.</p>
+                      </div>
+                      <div className='game-page__game-header-actions'>
+                        <span className='game-page__game-badge'>하루 3회</span>
+                        <button
+                          type='button'
+                          className='game-page__back'
+                          disabled={busy}
+                          onClick={backToGambleList}
+                        >
+                          ←
+                        </button>
+                      </div>
+                    </header>
                   </div>
-                  {shellWon !== null && <p className={shellWon ? 'game-page__result game-page__result--success' : 'game-page__result'} role='status'>{shellWon ? '선택한 컵에서 공을 찾았습니다!' : '선택한 컵은 비어 있었습니다.'}</p>}
-                  <button type='button' disabled={busy || bet <= 0} onClick={() => void playShellGame()}>{shellShuffling ? '섞는 중…' : '도전'}</button>
+                  <div
+                    className={
+                      shellShuffling
+                        ? 'game-page__shell-stage is-shuffling'
+                        : shellAnswer
+                          ? 'game-page__shell-stage is-revealed'
+                          : 'game-page__shell-stage'
+                    }
+                  >
+                    <div className='game-page__shell-status' aria-live='polite'>
+                      {shellShuffling
+                        ? '컵을 섞고 있습니다…'
+                        : shellAnswer
+                          ? `${shellAnswer}번 컵의 공을 공개했습니다.`
+                          : '공이 숨은 컵을 선택하세요.'}
+                    </div>
+                    <div
+                      className={
+                        shellShuffling
+                          ? 'game-page__cups game-page__cups--shuffling'
+                          : 'game-page__cups'
+                      }
+                      aria-label='컵 선택'
+                    >
+                      {[1, 2, 3].map((number) => (
+                        <button
+                          type='button'
+                          className={
+                            cup === number
+                              ? 'game-page__cup-choice active'
+                              : 'game-page__cup-choice'
+                          }
+                          disabled={busy}
+                          aria-pressed={cup === number}
+                          key={number}
+                          onClick={() => {
+                            setCup(number);
+                            setShellAnswer(null);
+                            setShellWon(null);
+                          }}
+                        >
+                          <span className='game-page__cup' aria-hidden='true' />
+                          <span className='game-page__cup-number'>
+                            {number}
+                          </span>
+                          {shellAnswer === number && (
+                            <span className='game-page__ball' aria-label='공'>
+                              ●
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {shellWon !== null && (
+                    <p
+                      className={
+                        shellWon
+                          ? 'game-page__result game-page__result--success'
+                          : 'game-page__result'
+                      }
+                      role='status'
+                    >
+                      {shellWon
+                        ? '정답입니다. 공을 찾았습니다!'
+                        : '아쉽지만 빈 컵입니다.'}
+                    </p>
+                  )}
+                  <div className='game-page__shell-action-bar'>
+                    <div className='game-page__bet-group'>
+                      <label className='game-page__bet-control'>
+                        <span>배팅</span>
+                        <input
+                          type='number'
+                          min={1}
+                          value={bet}
+                          onChange={(event) => {
+                            setBet(Number(event.currentTarget.value));
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <button
+                      type='button'
+                      className='game-page__primary-action'
+                      disabled={busy || bet <= 0}
+                      onClick={() => void playShellGame()}
+                    >
+                      {shellShuffling ? '진행 중…' : '도전하기'}
+                    </button>
+                  </div>
                 </section>
               )}
 
               {gambleView === 'simon' && (
                 <section className='game-page__game-component game-page__simon'>
-                  <button type='button' className='game-page__back' disabled={busy} onClick={backToGambleList}>← 뒤로</button>
-                  <h3>Simon 기억력 게임</h3>
-                  <p aria-live='polite'>{simonMessage}</p>
-                  <div className='game-page__simon-board'>
-                    {[0, 1, 2, 3].map((panel) => <button type='button' aria-label={`Simon 패널 ${panel + 1}`} className={simonActivePanel === panel ? 'active' : undefined} disabled={!simonAccepting} key={panel} onClick={() => { chooseSimonPanel(panel); }}>{panel + 1}</button>)}
+                  <div className='game-page__game-toolbar'>
+                    <header className='game-page__game-header'>
+                      <div>
+                        <h3>Simon 기억력 게임</h3>
+                        <p>키보드 숫자 1~4로도 입력할 수 있습니다.</p>
+                      </div>
+                      <div className='game-page__game-header-actions'>
+                        <span className='game-page__game-badge'>5라운드</span>
+                        <button
+                          type='button'
+                          className='game-page__back'
+                          disabled={busy}
+                          onClick={backToGambleList}
+                        >
+                          ←
+                        </button>
+                      </div>
+                    </header>
                   </div>
-                  <button type='button' disabled={busy || simonAccepting} onClick={() => void startSimon()}>게임 시작</button>
+                  <div className='game-page__simon-stage'>
+                    <div
+                      className={
+                        simonAccepting
+                          ? 'game-page__simon-status is-input'
+                          : simon
+                            ? 'game-page__simon-status is-showing'
+                            : 'game-page__simon-status'
+                      }
+                      aria-live='polite'
+                    >
+                      <div>
+                        <span>{simonMessage}</span>
+                        <div
+                          className='game-page__simon-progress'
+                          aria-hidden='true'
+                        >
+                          <i
+                            style={{
+                              width: `${simon ? (simonInput.length / simon.sequence.length) * 100 : 0}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <strong>
+                        {simon
+                          ? `${simonInput.length} / ${simon.sequence.length}`
+                          : '준비'}
+                      </strong>
+                    </div>
+                    <div
+                      className={
+                        simonAccepting
+                          ? 'game-page__simon-board is-input'
+                          : 'game-page__simon-board game-page__simon-board--locked'
+                      }
+                    >
+                      {[0, 1, 2, 3].map((panel) => (
+                        <button
+                          type='button'
+                          aria-label={`Simon 패널 ${panel + 1}`}
+                          className={
+                            simonActivePanel === panel ? 'active' : undefined
+                          }
+                          disabled={!simonAccepting}
+                          key={panel}
+                          onClick={() => {
+                            chooseSimonPanel(panel);
+                          }}
+                        >
+                          {panel + 1}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className='game-page__simon-footer'>
+                    <span>
+                      {simon
+                        ? `${simon.round}라운드 · 순서를 기억하세요.`
+                        : '5라운드를 통과하면 보상을 받습니다.'}
+                    </span>
+                    <button
+                      type='button'
+                      className='game-page__primary-action'
+                      disabled={busy || simonAccepting || !!simon}
+                      onClick={() => void startSimon()}
+                    >
+                      {simon ? '순서를 확인하는 중…' : '게임 시작'}
+                    </button>
+                  </div>
+                </section>
+              )}
+
+              {gambleView === 'blackjack' && (
+                <section className='game-page__game-component game-page__blackjack'>
+                  <div className='game-page__game-toolbar'>
+                    <header className='game-page__game-header'>
+                      <div>
+                        <h3>블랙잭</h3>
+                        <p>딜러보다 높은 합계를 만들되, 21을 넘기지 마세요.</p>
+                      </div>
+                      <div className='game-page__game-header-actions'>
+                        <span className='game-page__game-badge'>BLACKJACK</span>
+                        <button
+                          type='button'
+                          className='game-page__back'
+                          disabled={
+                            busy || (!!blackjack && !blackjack.finished)
+                          }
+                          onClick={backToGambleList}
+                        >
+                          ← 목록
+                        </button>
+                      </div>
+                    </header>
+                  </div>
+
+                  <div className='game-page__blackjack-table'>
+                    <div className='game-page__blackjack-hand'>
+                      <div className='game-page__blackjack-hand-label'>
+                        <span>DEALER</span>
+                        <strong>
+                          {blackjack?.finished
+                            ? blackjack.dealer_total
+                            : blackjack
+                              ? '?'
+                              : '—'}
+                        </strong>
+                      </div>
+                      <div className='game-page__playing-cards'>
+                        {(blackjack?.dealer_cards ?? []).map((card, index) => (
+                          <span
+                            className={
+                              isRedSuit(card.suit)
+                                ? 'game-page__playing-card is-red'
+                                : 'game-page__playing-card'
+                            }
+                            key={`${card.rank}-${card.suit}-${index}`}
+                          >
+                            <b>{card.rank}</b>
+                            <i>{card.suit}</i>
+                          </span>
+                        ))}
+                        {!blackjack && (
+                          <span className='game-page__playing-card is-hidden'>
+                            ?
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className='game-page__blackjack-divider'>VS</div>
+
+                    <div className='game-page__blackjack-hand'>
+                      <div className='game-page__blackjack-hand-label'>
+                        <span>PLAYER</span>
+                        <strong>{blackjack?.player_total ?? '—'}</strong>
+                      </div>
+                      <div className='game-page__playing-cards'>
+                        {(blackjack?.player_cards ?? []).map((card, index) => (
+                          <span
+                            className={
+                              isRedSuit(card.suit)
+                                ? 'game-page__playing-card is-red'
+                                : 'game-page__playing-card'
+                            }
+                            key={`${card.rank}-${card.suit}-${index}`}
+                          >
+                            <b>{card.rank}</b>
+                            <i>{card.suit}</i>
+                          </span>
+                        ))}
+                        {!blackjack && (
+                          <span className='game-page__blackjack-empty'>
+                            카드를 받으세요
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className='game-page__blackjack-controls'>
+                    {!blackjack || blackjack.finished ? (
+                      <>
+                        <div className='game-page__bet-group'>
+                          <label className='game-page__bet-control game-page__blackjack-bet'>
+                            <span>배팅</span>
+                            <input
+                              type='number'
+                              min={1}
+                              value={bet}
+                              onChange={(event) => {
+                                setBet(Number(event.currentTarget.value));
+                              }}
+                            />
+                          </label>
+                        </div>
+                        <button
+                          type='button'
+                          className='game-page__blackjack-start'
+                          disabled={busy || bet <= 0}
+                          onClick={() => void startBlackjack()}
+                        >
+                          {blackjack?.finished ? '다시 배팅하기' : '게임 시작'}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className='game-page__blackjack-status'>
+                          배팅 {blackjack.bet} 재화 · 현재 합계{' '}
+                          {blackjack.player_total}
+                        </span>
+                        <button
+                          type='button'
+                          className='game-page__blackjack-hit'
+                          disabled={busy}
+                          onClick={() => void playBlackjack('hit')}
+                        >
+                          히트
+                        </button>
+                        <button
+                          type='button'
+                          className='game-page__blackjack-stand'
+                          disabled={busy}
+                          onClick={() => void playBlackjack('stand')}
+                        >
+                          스탠드
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {blackjack?.finished && (
+                    <p
+                      className={`game-page__blackjack-result is-${blackjack.outcome}`}
+                      role='status'
+                    >
+                      {blackjack.message}{' '}
+                      {blackjack.payout ? `지급 재화 ${blackjack.payout}` : ''}
+                    </p>
+                  )}
                 </section>
               )}
             </div>
           )}
         </main>
       </div>
-      <Helmet><title>게임 상점</title><meta name='robots' content='noindex' /></Helmet>
+      <Helmet>
+        <title>게임 상점</title>
+        <meta name='robots' content='noindex' />
+      </Helmet>
     </Column>
   );
 };

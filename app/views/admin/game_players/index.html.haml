@@ -1,0 +1,43 @@
+- content_for :page_title do
+  게임 사용자 관리
+
+= form_with url: admin_game_players_path, method: :get, class: :simple_form do |form|
+  .fields-group
+    .input.string.optional
+      = form.label :q, '계정 검색'
+      = form.text_field :q, value: params[:q], class: 'string optional', placeholder: '사용자명 또는 표시 이름'
+  .actions
+    = form.button '검색', class: 'button', type: :submit
+    = link_to '초기화', admin_game_players_path, class: 'button button--dangerous'
+
+%table.table
+  %thead
+    %tr
+      %th 계정
+      %th 재화
+      %th 명성
+      %th 승 / 패 / 무
+      %th 보유 종류
+      %th 보유 수량
+      %th
+  %tbody
+    - if @game_profiles.empty?
+      %tr
+        %td{ colspan: 7 } 게임 프로필이 있는 사용자가 없습니다.
+    - @game_profiles.each do |profile|
+      - record = @battle_records.fetch(profile.account_id, Admin::GamePlayersController::EMPTY_RECORD)
+      - inventory = @inventory_summaries.fetch(profile.account_id, { kinds: 0, quantity: 0 })
+      %tr
+        %td
+          = link_to "@#{profile.account.acct}", admin_game_player_path(profile)
+          - if profile.account.display_name.present?
+            %br/
+            = profile.account.display_name
+        %td= profile.currency
+        %td= profile.reputation
+        %td #{record[:wins]} / #{record[:losses]} / #{record[:draws]}
+        %td= inventory[:kinds]
+        %td= inventory[:quantity]
+        %td= link_to '상세', admin_game_player_path(profile), class: 'button'
+
+= paginate @game_profiles

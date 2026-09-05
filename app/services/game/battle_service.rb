@@ -2,7 +2,7 @@
 
 module Game
   class BattleService
-    COMMAND_PATTERN = %r{\[(전투포기|전투|승낙|거절|공격|방어|복수|살해|주사위)(?:/([^\]]+))?\]}
+    COMMAND_PATTERN = %r{\[(전투포기|전투|승낙|거절|공격|방어|복수|살해|주사위|양도)(?:/([^\]]+))?\]}
     ACTIONS = { '공격' => 'attack', '방어' => 'defense' }.freeze
 
     def initialize(status:, bot_account:)
@@ -44,6 +44,7 @@ module Game
       when '복수' then revenge!
       when '살해' then kill!
       when '주사위' then payload(BattleConfig.message(:dice_result, result: roll(1, 6)))
+      when '양도' then transfer!(option)
       else payload(BattleConfig.message(:invalid_command))
       end
     end
@@ -250,6 +251,16 @@ module Game
         battle.update!(kill_used_at: Time.current)
       end
       payload(BattleConfig.message(:kill_script), accounts: participants(battle))
+    end
+
+    def transfer!(item_name)
+      target = sole_target
+      return payload(BattleConfig.message(:transfer_invalid_target)) unless target
+
+      result = ItemTransferService.new(sender: @actor, recipient: target).transfer!(item_name)
+      payload(BattleConfig.message(:transfer_completed, sender: label(@actor), recipient: label(target), item: result[:item].name, count: result[:count], limit: BattleConfig.fetch(:item_transfer_daily_limit)), accounts: [@actor, target])
+    rescue Error => e
+      payload(e.message)
     end
 
     def sole_target

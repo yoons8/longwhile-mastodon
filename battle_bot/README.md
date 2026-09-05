@@ -2,6 +2,9 @@
 
 The bot listens for Mastodon mentions and delegates all game decisions to Rails.
 
+To transfer one owned item, mention the recipient and the bot together and post
+`[양도/아이템이름]`. Each sender can complete up to three transfers per day.
+
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r battle_bot/requirements.txt

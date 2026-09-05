@@ -197,6 +197,9 @@ Rails.application.routes.draw do
     post :talk
     post :vend
     post :shell_game
+    post :start_blackjack
+    post :blackjack_hit
+    post :blackjack_stand
     post :start_simon
     post :submit_simon
   end
