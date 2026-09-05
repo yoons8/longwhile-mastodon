@@ -6,6 +6,12 @@ namespace :api, format: false do
 
   # JSON / REST API
   namespace :v1 do
+    namespace :game do
+      namespace :bot do
+        resources :commands, only: :create
+      end
+    end
+
     resources :statuses, only: [:index, :create, :show, :update, :destroy] do
       scope module: :statuses do
         resources :reblogged_by, controller: :reblogged_by_accounts, only: :index

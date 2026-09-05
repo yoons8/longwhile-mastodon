@@ -1,0 +1,13 @@
+.fields-group
+  = form.input :name, label: '이름', wrapper: :with_block_label
+  = form.input :description, label: '설명', wrapper: :with_block_label
+  = form.input :base_price, label: '기준 가격', input_html: { min: 0 }, wrapper: :with_block_label
+  = form.input :min_reputation, label: '필요 명성', input_html: { min: 0 }, hint: '사용자 명성이 이 값 이상일 때만 아이템이 노출됩니다.', wrapper: :with_block_label
+  = form.input :item_type, collection: [['전투', 'battle'], ['역할극', 'roleplay'], ['기타', 'miscellaneous']], label: '종류', wrapper: :with_block_label
+  = form.input :battle_action, collection: [['공격', 'attack'], ['방어', 'defense']], include_blank: true, label: '전투 행동', hint: '전투 아이템에만 공격 또는 방어를 지정합니다.', wrapper: :with_block_label
+  = form.input :dice_count, label: '주사위 개수', input_html: { min: 1, max: 10 }, wrapper: :with_block_label
+  = form.input :dice_sides, label: '주사위 면수', input_html: { min: 2, max: 100 }, wrapper: :with_block_label
+  = form.input :flat_bonus, label: '고정 보정값', input_html: { min: -100, max: 100 }, wrapper: :with_block_label
+  = form.input :consumable, as: :boolean, label: '소모성', hint: '전투 아이템은 자동으로 소모성 처리됩니다.', wrapper: :with_label
+  = form.input :active, as: :boolean, label: '활성화', wrapper: :with_label
+  = form.input :image, as: :file, label: '이미지', input_html: { accept: GameItem::IMAGE_MIME_TYPES.join(',') }, wrapper: :with_block_label

@@ -40,6 +40,7 @@ import {
   Compose,
   Status,
   GettingStarted,
+  Game,
   KeyboardShortcuts,
   Firehose,
   AccountTimeline,
@@ -210,6 +211,7 @@ class SwitchingColumnsArea extends PureComponent {
             {!singleColumn && pathName === '/home' ? <Redirect from='/home' to='/deck/getting-started' exact /> : null}
 
             <WrappedRoute path='/getting-started' component={GettingStarted} content={children} />
+            <WrappedRoute path='/game' component={Game} content={children} />
             <WrappedRoute path='/keyboard-shortcuts' component={KeyboardShortcuts} content={children} />
             <WrappedRoute path='/about' component={About} content={children} />
             <WrappedRoute path='/privacy-policy' component={PrivacyPolicy} content={children} />

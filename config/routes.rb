@@ -190,6 +190,17 @@ Rails.application.routes.draw do
 
   draw(:admin)
 
+  resource :game, only: [:show], controller: :game do
+    get :state
+    post :purchase
+    post :sell
+    post :talk
+    post :vend
+    post :shell_game
+    post :start_simon
+    post :submit_simon
+  end
+
   get '/admin', to: redirect('/admin/dashboard', status: 302)
 
   draw(:api)

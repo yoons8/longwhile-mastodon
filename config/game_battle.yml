@@ -1,0 +1,47 @@
+default: &default
+  max_hp: 20
+  max_turns: 10
+  attack_dice_count: 1
+  attack_dice_sides: 6
+  attack_bonus: 0
+  defense_dice_count: 1
+  defense_dice_sides: 6
+  defense_bonus: 0
+  revenge_attack_bonus: 2
+  winner_currency: 10
+  winner_reputation: 2
+  loser_currency: 2
+  loser_reputation_loss: 1
+  refusal_reputation_loss: 1
+  messages:
+    invalid_command: "사용할 수 없는 전투 키워드입니다."
+    invalid_target: "봇을 제외한 전투 상대 한 명을 함께 태그해 주세요."
+    already_in_battle: "이미 진행 중인 전투가 있습니다. 기존 전투를 마무리해 주세요."
+    target_in_battle: "상대방이 이미 전투 중입니다."
+    challenge_created: "%{challenger} 님이 %{opponent} 님에게 전투를 신청했습니다. [승낙] 또는 [거절]을 입력해 주세요."
+    challenge_accepted: "전투가 시작되었습니다. 양쪽 참가자는 [공격] 또는 [방어]를 입력해 주세요."
+    challenge_rejected: "전투 신청이 거절되었습니다. 신청자의 명성이 감소했습니다."
+    no_battle: "처리할 전투가 없습니다."
+    not_your_turn: "이 전투의 참가자만 행동할 수 있습니다."
+    duplicate_action: "이번 턴의 행동은 이미 입력했습니다."
+    awaiting_revenge_attack: "복수전 첫 턴은 복수 신청자가 먼저 행동해야 합니다."
+    action_recorded: "%{player} 님이 [%{action}]을 선택했습니다. 상대방의 입력을 기다립니다."
+    item_fallback: "%{player} 님은 사용할 수 있는 %{item}을(를) 보유하지 않아 일반 %{action}(으)로 진행합니다."
+    turn_result: "%{turn}턴 결과\n%{details}\n남은 체력: %{challenger} %{challenger_hp} / %{opponent} %{opponent_hp}"
+    battle_won: "전투 종료! %{winner} 님이 승리했습니다."
+    battle_draw: "10턴 종료! 남은 체력이 같아 무승부입니다."
+    battle_cancelled: "전투가 포기되어 무효 처리되었습니다. 승패 및 재화·명성 변동은 없습니다."
+    revenge_unavailable: "복수 조건을 충족하지 못했습니다. 직전 전투에서 패배한 상대에게만 사용할 수 있습니다."
+    revenge_started: "%{challenger} 님의 복수 공격이 시작되었습니다. 첫 공격에 보너스가 적용됩니다. 상대방은 [공격] 또는 [방어]를 입력해 주세요."
+    kill_unavailable: "[살해]를 사용할 수 있는 전투가 없습니다."
+    kill_script: "승자는 패자에게 마지막 일격을 가합니다."
+    dice_result: "1D6을 굴립니다. 결과는 %{result}입니다."
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  <<: *default

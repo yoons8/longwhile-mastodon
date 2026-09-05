@@ -1,0 +1,29 @@
+- content_for :page_title do
+  게임 아이템
+- content_for :heading_actions do
+  = link_to '새 아이템', new_admin_game_item_path, class: 'button'
+
+- item_type_labels = { 'battle' => '전투', 'roleplay' => '역할극', 'miscellaneous' => '기타' }
+
+%table.table
+  %thead
+    %tr
+      %th 이름
+      %th 종류
+      %th 가격
+      %th 필요 명성
+      %th 상태
+      %th
+  %tbody
+    - @game_items.each do |item|
+      %tr
+        %td= item.name
+        %td= item_type_labels.fetch(item.item_type, item.item_type)
+        %td= item.base_price
+        %td= item.min_reputation
+        %td= item.active? ? '활성' : '비활성'
+        %td
+          = table_link_to 'edit', '수정', edit_admin_game_item_path(item)
+          - if item.active?
+            = table_link_to 'block', '비활성화', admin_game_item_path(item), method: :delete, data: { confirm: '비활성화하시겠습니까?' }
+= paginate @game_items

@@ -10,6 +10,7 @@
 #  title           :string
 #  created_at      :datetime         not null
 #  updated_at      :datetime         not null
+#  creator_id      :bigint(8)
 #  last_status_id  :bigint(8)
 #  root_status_id  :bigint(8)
 #

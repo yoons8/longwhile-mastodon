@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_04_001000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -360,6 +360,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
     t.string "uri"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.bigint "dm_room_id"
+    t.index ["dm_room_id"], name: "index_conversations_on_dm_room_id"
     t.index ["uri"], name: "index_conversations_on_uri", unique: true, opclass: :text_pattern_ops, where: "(uri IS NOT NULL)"
   end
 
@@ -415,6 +417,62 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
     t.datetime "updated_at", precision: nil, null: false
     t.integer "action", default: 0, null: false
     t.index ["account_id"], name: "index_custom_filters_on_account_id"
+  end
+
+  create_table "dm_hidden_statuses", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "status_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "status_id"], name: "index_dm_hidden_statuses_on_account_id_and_status_id", unique: true
+    t.index ["status_id"], name: "index_dm_hidden_statuses_on_status_id"
+  end
+
+  create_table "dm_room_members", force: :cascade do |t|
+    t.bigint "dm_room_id", null: false
+    t.bigint "account_id", null: false
+    t.datetime "hidden_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "dm_room_id"], name: "index_dm_room_members_on_account_id_and_dm_room_id", unique: true
+    t.index ["dm_room_id"], name: "index_dm_room_members_on_dm_room_id"
+  end
+
+  create_table "dm_room_nicknames", force: :cascade do |t|
+    t.bigint "dm_room_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "target_account_id", null: false
+    t.string "nickname", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["dm_room_id", "account_id", "target_account_id"], name: "index_dm_room_nicknames_on_room_and_pair", unique: true
+    t.index ["target_account_id"], name: "index_dm_room_nicknames_on_target_account_id"
+  end
+
+  create_table "dm_room_reads", force: :cascade do |t|
+    t.bigint "dm_room_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "last_read_status_id"
+    t.datetime "read_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["dm_room_id", "account_id"], name: "index_dm_room_reads_on_dm_room_id_and_account_id", unique: true
+    t.index ["last_read_status_id"], name: "index_dm_room_reads_on_last_read_status_id"
+  end
+
+  create_table "dm_rooms", force: :cascade do |t|
+    t.string "participant_key", null: false
+    t.integer "member_count", default: 0, null: false
+    t.string "title"
+    t.bigint "root_status_id"
+    t.bigint "last_status_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "creator_id"
+    t.index ["creator_id"], name: "index_dm_rooms_on_creator_id"
+    t.index ["last_status_id"], name: "index_dm_rooms_on_last_status_id"
+    t.index ["participant_key"], name: "index_dm_rooms_on_participant_key", unique: true
+    t.index ["root_status_id"], name: "index_dm_rooms_on_root_status_id"
   end
 
   create_table "domain_allows", force: :cascade do |t|
@@ -558,6 +616,173 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
     t.string "languages", array: true
     t.index ["account_id", "target_account_id"], name: "index_follows_on_account_id_and_target_account_id", unique: true
     t.index ["target_account_id"], name: "index_follows_on_target_account_id"
+  end
+
+  create_table "game_battle_turns", force: :cascade do |t|
+    t.bigint "game_battle_id", null: false
+    t.integer "turn_number", null: false
+    t.string "challenger_action"
+    t.string "opponent_action"
+    t.bigint "challenger_item_id"
+    t.bigint "opponent_item_id"
+    t.string "challenger_status_id"
+    t.string "opponent_status_id"
+    t.jsonb "result", default: {}, null: false
+    t.datetime "resolved_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["challenger_status_id"], name: "index_game_battle_turns_on_challenger_status_id", unique: true, where: "(challenger_status_id IS NOT NULL)"
+    t.index ["game_battle_id", "turn_number"], name: "index_game_battle_turns_on_game_battle_id_and_turn_number", unique: true
+    t.index ["game_battle_id"], name: "index_game_battle_turns_on_game_battle_id"
+    t.index ["opponent_status_id"], name: "index_game_battle_turns_on_opponent_status_id", unique: true, where: "(opponent_status_id IS NOT NULL)"
+    t.check_constraint "challenger_action IS NULL OR (challenger_action::text = ANY (ARRAY['attack'::character varying, 'defense'::character varying]::text[]))", name: "game_battle_turns_challenger_action_check"
+    t.check_constraint "opponent_action IS NULL OR (opponent_action::text = ANY (ARRAY['attack'::character varying, 'defense'::character varying]::text[]))", name: "game_battle_turns_opponent_action_check"
+    t.check_constraint "turn_number >= 1", name: "game_battle_turns_number_check"
+  end
+
+  create_table "game_battles", force: :cascade do |t|
+    t.bigint "challenger_account_id", null: false
+    t.bigint "opponent_account_id", null: false
+    t.bigint "winner_account_id"
+    t.bigint "loser_account_id"
+    t.bigint "revenge_of_id"
+    t.string "state", default: "pending", null: false
+    t.integer "current_turn", default: 0, null: false
+    t.integer "challenger_hp", null: false
+    t.integer "opponent_hp", null: false
+    t.datetime "finished_at"
+    t.datetime "revenge_used_at"
+    t.datetime "kill_used_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["challenger_account_id", "state"], name: "index_game_battles_on_challenger_account_id_and_state"
+    t.index ["loser_account_id", "finished_at"], name: "index_game_battles_on_loser_account_id_and_finished_at"
+    t.index ["opponent_account_id", "state"], name: "index_game_battles_on_opponent_account_id_and_state"
+    t.check_constraint "challenger_account_id <> opponent_account_id", name: "game_battles_distinct_accounts_check"
+    t.check_constraint "challenger_hp >= 0 AND opponent_hp >= 0", name: "game_battles_hp_check"
+    t.check_constraint "current_turn >= 0", name: "game_battles_turn_check"
+    t.check_constraint "state::text = ANY (ARRAY['pending'::character varying, 'active'::character varying, 'finished'::character varying, 'cancelled'::character varying, 'rejected'::character varying]::text[])", name: "game_battles_state_check"
+  end
+
+  create_table "game_bot_events", force: :cascade do |t|
+    t.string "status_id", null: false
+    t.bigint "account_id", null: false
+    t.string "command", null: false
+    t.jsonb "response", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_game_bot_events_on_account_id"
+    t.index ["status_id"], name: "index_game_bot_events_on_status_id", unique: true
+  end
+
+  create_table "game_daily_usages", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "action_type", null: false
+    t.date "usage_date", null: false
+    t.integer "count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "action_type", "usage_date"], name: "index_game_daily_usages_unique_action", unique: true
+    t.index ["account_id"], name: "index_game_daily_usages_on_account_id"
+    t.check_constraint "count >= 0", name: "game_daily_usages_count_nonnegative"
+  end
+
+  create_table "game_inventories", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "game_item_id", null: false
+    t.integer "quantity", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "game_item_id"], name: "index_game_inventories_on_account_id_and_game_item_id", unique: true
+    t.index ["account_id"], name: "index_game_inventories_on_account_id"
+    t.index ["game_item_id"], name: "index_game_inventories_on_game_item_id"
+    t.check_constraint "quantity >= 0", name: "game_inventories_quantity_nonnegative"
+  end
+
+  create_table "game_items", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description", default: "", null: false
+    t.bigint "base_price", null: false
+    t.string "item_type", null: false
+    t.boolean "consumable", default: false, null: false
+    t.boolean "active", default: true, null: false
+    t.string "image_file_name"
+    t.string "image_content_type"
+    t.integer "image_file_size"
+    t.datetime "image_updated_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "min_reputation", default: 0, null: false
+    t.string "battle_action"
+    t.integer "dice_count"
+    t.integer "dice_sides"
+    t.integer "flat_bonus", default: 0, null: false
+    t.index ["active", "item_type"], name: "index_game_items_on_active_and_item_type"
+    t.index ["active", "min_reputation"], name: "index_game_items_on_active_and_min_reputation"
+    t.check_constraint "base_price >= 0", name: "game_items_base_price_nonnegative"
+    t.check_constraint "battle_action IS NULL OR (battle_action::text = ANY (ARRAY['attack'::character varying, 'defense'::character varying]::text[]))", name: "game_items_battle_action_check"
+    t.check_constraint "dice_count IS NULL OR dice_count >= 1 AND dice_count <= 10", name: "game_items_dice_count_check"
+    t.check_constraint "dice_sides IS NULL OR dice_sides >= 2 AND dice_sides <= 100", name: "game_items_dice_sides_check"
+    t.check_constraint "min_reputation >= 0", name: "game_items_min_reputation_nonnegative"
+  end
+
+  create_table "game_profiles", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "currency", default: 0, null: false
+    t.integer "reputation", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_game_profiles_on_account_id", unique: true
+    t.check_constraint "currency >= 0", name: "game_profiles_currency_nonnegative"
+    t.check_constraint "reputation >= 0", name: "game_profiles_reputation_nonnegative"
+  end
+
+  create_table "game_shop_items", force: :cascade do |t|
+    t.bigint "game_shop_id", null: false
+    t.bigint "game_item_id", null: false
+    t.bigint "price", null: false
+    t.integer "stock"
+    t.integer "purchase_limit"
+    t.integer "min_reputation", default: 0, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_item_id"], name: "index_game_shop_items_on_game_item_id"
+    t.index ["game_shop_id", "active"], name: "index_game_shop_items_on_game_shop_id_and_active"
+    t.index ["game_shop_id", "game_item_id"], name: "index_game_shop_items_on_game_shop_id_and_game_item_id", unique: true
+    t.index ["game_shop_id"], name: "index_game_shop_items_on_game_shop_id"
+    t.check_constraint "min_reputation >= 0", name: "game_shop_items_min_reputation_nonnegative"
+    t.check_constraint "price >= 0", name: "game_shop_items_price_nonnegative"
+    t.check_constraint "purchase_limit IS NULL OR purchase_limit > 0", name: "game_shop_items_purchase_limit_positive"
+    t.check_constraint "stock IS NULL OR stock >= 0", name: "game_shop_items_stock_nonnegative"
+  end
+
+  create_table "game_shops", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description", default: "", null: false
+    t.string "shop_type", default: "normal", null: false
+    t.boolean "active", default: true, null: false
+    t.integer "min_reputation", default: 0, null: false
+    t.datetime "starts_at"
+    t.datetime "ends_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active", "shop_type"], name: "index_game_shops_on_active_and_shop_type"
+    t.index ["starts_at", "ends_at"], name: "index_game_shops_on_starts_at_and_ends_at"
+    t.check_constraint "min_reputation >= 0", name: "game_shops_min_reputation_nonnegative"
+  end
+
+  create_table "game_transactions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "action_type", null: false
+    t.bigint "game_item_id"
+    t.bigint "currency_change", default: 0, null: false
+    t.integer "item_change", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.index ["account_id", "action_type", "created_at"], name: "index_game_transactions_on_account_action_created"
+    t.index ["account_id", "created_at"], name: "index_game_transactions_on_account_id_and_created_at"
+    t.index ["account_id"], name: "index_game_transactions_on_account_id"
+    t.index ["game_item_id"], name: "index_game_transactions_on_game_item_id"
   end
 
   create_table "generated_annual_reports", force: :cascade do |t|
@@ -777,12 +1002,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
     t.boolean "multi_account", default: false, null: false
     t.string "purpose", limit: 50
     t.boolean "long_lived", default: false, null: false
+    t.index ["multi_account", "long_lived"], name: "index_oauth_access_tokens_on_multi_account_and_long_lived"
+    t.index ["multi_account"], name: "index_oauth_access_tokens_on_multi_account"
+    t.index ["purpose"], name: "index_oauth_access_tokens_on_purpose"
     t.index ["refresh_token"], name: "index_oauth_access_tokens_on_refresh_token", unique: true, opclass: :text_pattern_ops, where: "(refresh_token IS NOT NULL)"
     t.index ["resource_owner_id"], name: "index_oauth_access_tokens_on_resource_owner_id", where: "(resource_owner_id IS NOT NULL)"
     t.index ["token"], name: "index_oauth_access_tokens_on_token", unique: true
-    t.index ["multi_account"], name: "index_oauth_access_tokens_on_multi_account"
-    t.index ["multi_account", "long_lived"], name: "index_oauth_access_tokens_on_multi_account_and_long_lived"
-    t.index ["purpose"], name: "index_oauth_access_tokens_on_purpose"
   end
 
   create_table "oauth_applications", force: :cascade do |t|
@@ -1124,9 +1349,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
     t.integer "quote_approval_policy", default: 0, null: false
     t.index ["account_id", "id", "visibility", "updated_at"], name: "index_statuses_20190820", order: { id: :desc }, where: "(deleted_at IS NULL)"
     t.index ["account_id"], name: "index_statuses_on_account_id"
+    t.index ["conversation_id"], name: "index_statuses_on_conversation_id"
     t.index ["deleted_at"], name: "index_statuses_on_deleted_at", where: "(deleted_at IS NOT NULL)"
     t.index ["id", "account_id"], name: "index_statuses_local_20190824", order: { id: :desc }, where: "((local OR (uri IS NULL)) AND (deleted_at IS NULL) AND (visibility = 0) AND (reblog_of_id IS NULL) AND ((NOT reply) OR (in_reply_to_account_id = account_id)))"
     t.index ["id", "language", "account_id"], name: "index_statuses_public_20250129", order: { id: :desc }, where: "((deleted_at IS NULL) AND (visibility = 0) AND (reblog_of_id IS NULL) AND ((NOT reply) OR (in_reply_to_account_id = account_id)))"
+    t.index ["id"], name: "index_statuses_direct_by_id", order: :desc, where: "((visibility = 3) AND (deleted_at IS NULL))"
     t.index ["in_reply_to_account_id"], name: "index_statuses_on_in_reply_to_account_id", where: "(in_reply_to_account_id IS NOT NULL)"
     t.index ["in_reply_to_id"], name: "index_statuses_on_in_reply_to_id", where: "(in_reply_to_id IS NOT NULL)"
     t.index ["reblog_of_id", "account_id"], name: "index_statuses_on_reblog_of_id_and_account_id"
@@ -1354,10 +1581,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
   add_foreign_key "canonical_email_blocks", "accounts", column: "reference_account_id", on_delete: :cascade
   add_foreign_key "conversation_mutes", "accounts", name: "fk_225b4212bb", on_delete: :cascade
   add_foreign_key "conversation_mutes", "conversations", on_delete: :cascade
+  add_foreign_key "conversations", "dm_rooms", on_delete: :nullify
   add_foreign_key "custom_filter_keywords", "custom_filters", on_delete: :cascade
   add_foreign_key "custom_filter_statuses", "custom_filters", on_delete: :cascade
   add_foreign_key "custom_filter_statuses", "statuses", on_delete: :cascade
   add_foreign_key "custom_filters", "accounts", on_delete: :cascade
+  add_foreign_key "dm_hidden_statuses", "accounts", on_delete: :cascade
+  add_foreign_key "dm_hidden_statuses", "statuses", on_delete: :cascade
+  add_foreign_key "dm_room_members", "accounts", on_delete: :cascade
+  add_foreign_key "dm_room_members", "dm_rooms", on_delete: :cascade
+  add_foreign_key "dm_room_nicknames", "accounts", column: "target_account_id", on_delete: :cascade
+  add_foreign_key "dm_room_nicknames", "accounts", on_delete: :cascade
+  add_foreign_key "dm_room_nicknames", "dm_rooms", on_delete: :cascade
+  add_foreign_key "dm_room_reads", "accounts", on_delete: :cascade
+  add_foreign_key "dm_room_reads", "dm_rooms", on_delete: :cascade
+  add_foreign_key "dm_room_reads", "statuses", column: "last_read_status_id", on_delete: :nullify
+  add_foreign_key "dm_rooms", "accounts", column: "creator_id", on_delete: :nullify
+  add_foreign_key "dm_rooms", "statuses", column: "last_status_id", on_delete: :nullify
+  add_foreign_key "dm_rooms", "statuses", column: "root_status_id", on_delete: :nullify
   add_foreign_key "email_domain_blocks", "email_domain_blocks", column: "parent_id", on_delete: :cascade
   add_foreign_key "fasp_backfill_requests", "fasp_providers"
   add_foreign_key "fasp_debug_callbacks", "fasp_providers"
@@ -1373,6 +1614,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
   add_foreign_key "follow_requests", "accounts", name: "fk_76d644b0e7", on_delete: :cascade
   add_foreign_key "follows", "accounts", column: "target_account_id", name: "fk_745ca29eac", on_delete: :cascade
   add_foreign_key "follows", "accounts", name: "fk_32ed1b5560", on_delete: :cascade
+  add_foreign_key "game_battle_turns", "game_battles"
+  add_foreign_key "game_battle_turns", "game_items", column: "challenger_item_id"
+  add_foreign_key "game_battle_turns", "game_items", column: "opponent_item_id"
+  add_foreign_key "game_battles", "accounts", column: "challenger_account_id"
+  add_foreign_key "game_battles", "accounts", column: "loser_account_id"
+  add_foreign_key "game_battles", "accounts", column: "opponent_account_id"
+  add_foreign_key "game_battles", "accounts", column: "winner_account_id"
+  add_foreign_key "game_battles", "game_battles", column: "revenge_of_id"
+  add_foreign_key "game_bot_events", "accounts"
+  add_foreign_key "game_daily_usages", "accounts", on_delete: :cascade
+  add_foreign_key "game_inventories", "accounts", on_delete: :cascade
+  add_foreign_key "game_inventories", "game_items", on_delete: :restrict
+  add_foreign_key "game_profiles", "accounts", on_delete: :cascade
+  add_foreign_key "game_shop_items", "game_items", on_delete: :restrict
+  add_foreign_key "game_shop_items", "game_shops", on_delete: :cascade
+  add_foreign_key "game_transactions", "accounts", on_delete: :cascade
+  add_foreign_key "game_transactions", "game_items", on_delete: :restrict
   add_foreign_key "generated_annual_reports", "accounts"
   add_foreign_key "identities", "users", name: "fk_bea040f377", on_delete: :cascade
   add_foreign_key "invites", "users", on_delete: :cascade
@@ -1479,9 +1737,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
   add_index "instances", ["domain"], name: "index_instances_on_domain", unique: true
 
   create_view "user_ips", sql_definition: <<-SQL
-      SELECT user_id,
-      ip,
-      max(used_at) AS used_at
+      SELECT t0.user_id,
+      t0.ip,
+      max(t0.used_at) AS used_at
      FROM ( SELECT users.id AS user_id,
               users.sign_up_ip AS ip,
               users.created_at AS used_at
@@ -1498,7 +1756,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
               login_activities.created_at
              FROM login_activities
             WHERE (login_activities.success = true)) t0
-    GROUP BY user_id, ip;
+    GROUP BY t0.user_id, t0.ip;
   SQL
   create_view "account_summaries", materialized: true, sql_definition: <<-SQL
       SELECT accounts.id AS account_id,
@@ -1519,9 +1777,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
   add_index "account_summaries", ["account_id"], name: "index_account_summaries_on_account_id", unique: true
 
   create_view "global_follow_recommendations", materialized: true, sql_definition: <<-SQL
-      SELECT account_id,
-      sum(rank) AS rank,
-      array_agg(reason) AS reason
+      SELECT t0.account_id,
+      sum(t0.rank) AS rank,
+      array_agg(t0.reason) AS reason
      FROM ( SELECT account_summaries.account_id,
               ((count(follows.id))::numeric / (1.0 + (count(follows.id))::numeric)) AS rank,
               'most_followed'::text AS reason
@@ -1545,8 +1803,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_000000) do
                     WHERE (follow_recommendation_suppressions.account_id = statuses.account_id)))))
             GROUP BY account_summaries.account_id
            HAVING (sum((status_stats.reblogs_count + status_stats.favourites_count)) >= (5)::numeric)) t0
-    GROUP BY account_id
-    ORDER BY (sum(rank)) DESC;
+    GROUP BY t0.account_id
+    ORDER BY (sum(t0.rank)) DESC;
   SQL
   add_index "global_follow_recommendations", ["account_id"], name: "index_global_follow_recommendations_on_account_id", unique: true
 
