@@ -3,7 +3,7 @@
 module Game
   class BlackjackService
     TTL = 10.minutes.to_i
-    GAMES_PER_DAY = 30
+    GAMES_PER_DAY = 3
     DEALER_STAND_TOTAL = 17
     RANKS = %w(A 2 3 4 5 6 7 8 9 10 J Q K).freeze
     SUITS = %w(♠ ♥ ♦ ♣).freeze
@@ -26,8 +26,8 @@ module Game
         profile.lock!
         raise Error.new(:game_in_progress, '진행 중인 블랙잭 게임을 먼저 마무리하세요.') if active?
 
-        use_daily!
         raise Error.new(:insufficient_currency, '재화가 부족합니다.') if profile.currency < bet
+        use_daily!
 
         profile.update!(currency: profile.currency - bet)
         record!(action_type: 'blackjack_bet', currency: -bet)

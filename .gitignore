@@ -75,6 +75,7 @@ yarn-debug.log
 # Ignore Docker option files
 docker-compose.override.yml
 /battle_bot/.venv/
+/battle_bot/.state.json
 
 # Ignore dotenv .local files
 .env*.local

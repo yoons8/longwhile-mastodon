@@ -36,6 +36,7 @@ interface GameShop {
 
 interface GameState {
   profile: { currency: number; reputation: number };
+  daily_usage: Partial<Record<'shell_game' | 'simon' | 'blackjack', number>>;
   inventory: GameItem[];
   shops: GameShop[];
   blackjack?: BlackjackState | null;
@@ -87,6 +88,7 @@ const delay = (milliseconds: number) =>
   new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
 const isRedSuit = (suit: string) => suit === '♥' || suit === '♦';
+const GAME_DAILY_LIMIT = 3;
 
 const battleEffectLabel = (item: GameItem) => {
   const action = item.battle_action === 'defense' ? '방어' : '공격';
@@ -117,9 +119,23 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
   const [simon, setSimon] = useState<SimonState | null>(null);
   const [simonInput, setSimonInput] = useState<number[]>([]);
   const [simonActivePanel, setSimonActivePanel] = useState<number | null>(null);
+  const [simonCountdown, setSimonCountdown] = useState<number | null>(null);
   const [simonAccepting, setSimonAccepting] = useState(false);
   const [simonMessage, setSimonMessage] = useState('시작 버튼을 누르세요.');
   const [blackjack, setBlackjack] = useState<BlackjackState | null>(null);
+  const dailyUsage = state?.daily_usage ?? {};
+  const shellRemaining = Math.max(
+    0,
+    GAME_DAILY_LIMIT - (dailyUsage.shell_game ?? 0),
+  );
+  const simonRemaining = Math.max(
+    0,
+    GAME_DAILY_LIMIT - (dailyUsage.simon ?? 0),
+  );
+  const blackjackRemaining = Math.max(
+    0,
+    GAME_DAILY_LIMIT - (dailyUsage.blackjack ?? 0),
+  );
 
   const loadState = useCallback(async () => {
     const response = await api().get<GameState>('/game/state');
@@ -223,13 +239,27 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
   const showSequence = useCallback(async (nextSimon: SimonState) => {
     setSimonAccepting(false);
     setSimonInput([]);
+    const reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    const countdownDelay = reducedMotion ? 180 : 650;
+    const panelDelay = reducedMotion ? 160 : 350;
+    const panelGap = reducedMotion ? 80 : 140;
+
+    for (const count of [3, 2, 1]) {
+      setSimonCountdown(count);
+      setSimonMessage(`${nextSimon.round}라운드 시작 카운트다운 ${count}`);
+      await delay(countdownDelay);
+    }
+
+    setSimonCountdown(null);
     setSimonMessage(`${nextSimon.round}라운드 · 순서를 기억하세요.`);
-    await delay(450);
+    await delay(reducedMotion ? 80 : 260);
     for (const panel of nextSimon.sequence) {
       setSimonActivePanel(panel);
-      await delay(350);
+      await delay(panelDelay);
       setSimonActivePanel(null);
-      await delay(140);
+      await delay(panelGap);
     }
     setSimonAccepting(true);
     setSimonMessage(`${nextSimon.sequence.length}개를 순서대로 입력하세요.`);
@@ -240,13 +270,14 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
     try {
       const response = await api().post<SimonState>('/game/start_simon');
       setSimon(response.data);
+      await loadState();
       await showSequence(response.data);
     } catch (error) {
       setSimonMessage(errorMessage(error));
     } finally {
       setBusy(false);
     }
-  }, [showSequence]);
+  }, [loadState, showSequence]);
 
   const submitSimon = useCallback(
     async (current: SimonState, input: number[]) => {
@@ -323,7 +354,7 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
         },
       );
       applyBlackjackState(response.data);
-      if (!response.data.finished) await loadState();
+      await loadState();
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -618,7 +649,7 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                         <small>세 개의 컵 중 공이 숨은 곳을 고르세요.</small>
                       </span>
                       <span className='game-page__game-card-footer'>
-                        <span>하루 3회 도전</span>
+                        <span>오늘 {shellRemaining}회 남음</span>
                         <strong>
                           게임 시작 <b aria-hidden='true'>→</b>
                         </strong>
@@ -649,7 +680,7 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                         <small>빛나는 패널의 순서를 끝까지 기억하세요.</small>
                       </span>
                       <span className='game-page__game-card-footer'>
-                        <span>5라운드 보상</span>
+                        <span>오늘 {simonRemaining}회 · 5라운드 보상</span>
                         <strong>
                           게임 시작 <b aria-hidden='true'>→</b>
                         </strong>
@@ -684,7 +715,7 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                         <small>21에 가까워지되, 넘지 마세요.</small>
                       </span>
                       <span className='game-page__game-card-footer'>
-                        <span>딜러와 승부</span>
+                        <span>오늘 {blackjackRemaining}회 · 딜러와 승부</span>
                         <strong>
                           게임 시작 <b aria-hidden='true'>→</b>
                         </strong>
@@ -703,7 +734,9 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                         <p>공이 숨은 컵 하나를 고르세요.</p>
                       </div>
                       <div className='game-page__game-header-actions'>
-                        <span className='game-page__game-badge'>하루 3회</span>
+                        <span className='game-page__game-badge'>
+                          오늘 {shellRemaining} / 3회
+                        </span>
                         <button
                           type='button'
                           className='game-page__back'
@@ -788,11 +821,16 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                       <label className='game-page__bet-control'>
                         <span>배팅</span>
                         <input
-                          type='number'
-                          min={1}
+                          type='text'
+                          inputMode='numeric'
+                          pattern='[0-9]*'
                           value={bet}
                           onChange={(event) => {
-                            setBet(Number(event.currentTarget.value));
+                            setBet(
+                              Number(
+                                event.currentTarget.value.replace(/\D/g, ''),
+                              ),
+                            );
                           }}
                         />
                       </label>
@@ -800,7 +838,7 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                     <button
                       type='button'
                       className='game-page__primary-action'
-                      disabled={busy || bet <= 0}
+                      disabled={busy || bet <= 0 || shellRemaining === 0}
                       onClick={() => void playShellGame()}
                     >
                       {shellShuffling ? '진행 중…' : '도전하기'}
@@ -818,7 +856,9 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                         <p>키보드 숫자 1~4로도 입력할 수 있습니다.</p>
                       </div>
                       <div className='game-page__game-header-actions'>
-                        <span className='game-page__game-badge'>5라운드</span>
+                        <span className='game-page__game-badge'>
+                          오늘 {simonRemaining} / 3회
+                        </span>
                         <button
                           type='button'
                           className='game-page__back'
@@ -830,7 +870,28 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                       </div>
                     </header>
                   </div>
-                  <div className='game-page__simon-stage'>
+                  <div
+                    className={
+                      simonCountdown !== null
+                        ? 'game-page__simon-stage is-countdown'
+                        : simon && !simonAccepting
+                          ? 'game-page__simon-stage is-showing'
+                          : 'game-page__simon-stage'
+                    }
+                  >
+                    {simonCountdown !== null && (
+                      <div
+                        className='game-page__simon-countdown'
+                        aria-atomic='true'
+                        aria-live='assertive'
+                        key={simonCountdown}
+                        role='status'
+                      >
+                        <span>ROUND {simon?.round}</span>
+                        <strong>{simonCountdown}</strong>
+                        <small>준비하세요</small>
+                      </div>
+                    )}
                     <div
                       className={
                         simonAccepting
@@ -889,12 +950,17 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                     <span>
                       {simon
                         ? `${simon.round}라운드 · 순서를 기억하세요.`
-                        : '5라운드를 통과하면 보상을 받습니다.'}
+                        : `5라운드를 통과하면 보상을 받습니다. 오늘 ${simonRemaining}회 남음`}
                     </span>
                     <button
                       type='button'
                       className='game-page__primary-action'
-                      disabled={busy || simonAccepting || !!simon}
+                      disabled={
+                        busy ||
+                        simonAccepting ||
+                        !!simon ||
+                        simonRemaining === 0
+                      }
                       onClick={() => void startSimon()}
                     >
                       {simon ? '순서를 확인하는 중…' : '게임 시작'}
@@ -912,7 +978,9 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                         <p>딜러보다 높은 합계를 만들되, 21을 넘기지 마세요.</p>
                       </div>
                       <div className='game-page__game-header-actions'>
-                        <span className='game-page__game-badge'>BLACKJACK</span>
+                        <span className='game-page__game-badge'>
+                          오늘 {blackjackRemaining} / 3회
+                        </span>
                         <button
                           type='button'
                           className='game-page__back'
@@ -998,11 +1066,19 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                           <label className='game-page__bet-control game-page__blackjack-bet'>
                             <span>배팅</span>
                             <input
-                              type='number'
-                              min={1}
+                              type='text'
+                              inputMode='numeric'
+                              pattern='[0-9]*'
                               value={bet}
                               onChange={(event) => {
-                                setBet(Number(event.currentTarget.value));
+                                setBet(
+                                  Number(
+                                    event.currentTarget.value.replace(
+                                      /\D/g,
+                                      '',
+                                    ),
+                                  ),
+                                );
                               }}
                             />
                           </label>
@@ -1010,7 +1086,9 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                         <button
                           type='button'
                           className='game-page__blackjack-start'
-                          disabled={busy || bet <= 0}
+                          disabled={
+                            busy || bet <= 0 || blackjackRemaining === 0
+                          }
                           onClick={() => void startBlackjack()}
                         >
                           {blackjack?.finished ? '다시 배팅하기' : '게임 시작'}

@@ -85,7 +85,7 @@ module Game
         battle.lock!
         return payload(BattleConfig.message(:no_battle)) unless battle.state == 'pending'
 
-        profile = GameProfile.lock.find_by!(account: battle.challenger_account)
+        profile = GameProfile.lock.find_by!(account: battle.opponent_account)
         loss = BattleConfig.fetch(:refusal_reputation_loss)
         profile.update!(reputation: [profile.reputation - loss, 0].max)
         battle.update!(state: 'rejected', finished_at: Time.current)
@@ -238,19 +238,19 @@ module Game
         battle.turns.create!(turn_number: 1, challenger_action: 'attack', challenger_status_id: @status.id.to_s)
         previous.update!(revenge_used_at: Time.current)
       end
-      payload(BattleConfig.message(:revenge_started, challenger: label(@actor)), accounts: [@actor, target])
+      payload(BattleConfig.message(:revenge_started, challenger: label(@actor), opponent: label(target)), accounts: [@actor, target])
     end
 
     def kill!
-      battle = GameBattle.where(state: 'finished').involving(@actor).order(finished_at: :desc).first
-      return payload(BattleConfig.message(:kill_unavailable)) unless battle&.winner_account_id == @actor.id
+      battle = GameBattle.where.not(state: GameBattle::OPEN_STATES).involving(@actor).order(finished_at: :desc, id: :desc).first
+      return payload(BattleConfig.message(:kill_unavailable)) unless battle&.state == 'finished' && battle.winner_account_id == @actor.id && battle.kill_used_at.nil?
 
       battle.with_lock do
-        return payload(BattleConfig.message(:kill_unavailable)) if battle.kill_used_at?
+        return payload(BattleConfig.message(:kill_unavailable)) unless battle.winner_account_id == @actor.id && battle.kill_used_at.nil?
 
         battle.update!(kill_used_at: Time.current)
       end
-      payload(BattleConfig.message(:kill_script), accounts: participants(battle))
+      payload(BattleConfig.message(:kill_script, winner: label(battle.winner_account), loser: label(battle.loser_account), random: BattleConfig.kill_random_phrase), accounts: participants(battle))
     end
 
     def transfer!(item_name)
@@ -332,7 +332,7 @@ module Game
     end
 
     def label(account)
-      "@#{account.acct}"
+      account.display_name.presence || "@#{account.acct}"
     end
 
     def payload(text, accounts: [@actor])

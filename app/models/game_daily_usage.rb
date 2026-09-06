@@ -15,6 +15,6 @@
 class GameDailyUsage < ApplicationRecord
   belongs_to :account
 
-  validates :action_type, presence: true, length: { maximum: 100 }, uniqueness: { scope: [:account_id, :usage_date] }
+  validates :action_type, presence: true, length: { maximum: 100 }, uniqueness: { scope: [:account_id, :action_type, :usage_date] }
   validates :count, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 end

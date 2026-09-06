@@ -60,5 +60,15 @@ RSpec.describe Game::EconomyService do
       expect { service.shell_game!(1, 1) }.to raise_error(Game::Error, /횟수/)
       expect(GameDailyUsage.find_by!(account: account, action_type: 'shell_game').count).to eq(3)
     end
+
+    it 'keeps daily usage separate for each action type' do
+      allow(SecureRandom).to receive(:random_number).and_return(0)
+
+      service.shell_game!(1, 1)
+      service.talk!
+
+      expect(GameDailyUsage.find_by!(account: account, action_type: 'shell_game').count).to eq(1)
+      expect(GameDailyUsage.find_by!(account: account, action_type: 'talk').count).to eq(1)
+    end
   end
 end

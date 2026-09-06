@@ -65,9 +65,11 @@ class GameController < ApplicationController
   def state_payload
     inventories = GameInventory.owned.where(account: current_account).joins(:game_item).includes(:game_item).order(game_items: { name: :asc })
     items = GameItem.visible_to(@game_profile.reputation).order(:name)
+    game_usage = GameDailyUsage.where(account: current_account, usage_date: Time.zone.today, action_type: %w(shell_game simon blackjack)).pluck(:action_type, :count).to_h
 
     {
       profile: { currency: @game_profile.currency, reputation: @game_profile.reputation },
+      daily_usage: game_usage,
       blackjack: Game::BlackjackService.new(current_account).state,
       inventory: inventories.map { |inventory| inventory_payload(inventory) },
       shops: [{ id: 0, name: '상점', description: '구매 가능한 아이템입니다.', shop_type: 'normal', items: items.map { |item| shop_item_payload(item) } }],

@@ -3,6 +3,7 @@
 module Game
   class SimonService
     TTL = 5.minutes.to_i
+    GAMES_PER_DAY = 3
     MAX_ROUND = 5
     REWARD = 25
     CONSUME_SCRIPT = <<~LUA.squish.freeze
@@ -16,9 +17,16 @@ module Game
     end
 
     def start!
-      state = { token: SecureRandom.hex(24), round: 1, sequence: sequence_for(1) }
-      write(state)
-      public_state(state)
+      GameProfile.transaction do
+        profile = GameProfile.create_or_find_by!(account: @account)
+        profile.lock!
+        raise Error.new(:game_in_progress, '진행 중인 Simon 게임을 먼저 마무리하세요.') if active?
+
+        use_daily!
+        state = { token: SecureRandom.hex(24), round: 1, sequence: sequence_for(1) }
+        write(state)
+        public_state(state)
+      end
     end
 
     def submit!(token, input)
@@ -47,6 +55,10 @@ module Game
       "game:simon:account:#{@account.id}"
     end
 
+    def active?
+      RedisConnection.with { |redis| redis.exists?(key) }
+    end
+
     def write(state)
       RedisConnection.with { |redis| redis.set(key, state.to_json, ex: TTL) }
     end
@@ -72,6 +84,14 @@ module Game
         GameTransaction.create!(account: @account, action_type: 'simon_reward', currency_change: REWARD)
         profile.currency
       end
+    end
+
+    def use_daily!
+      usage = GameDailyUsage.find_or_create_by!(account: @account, action_type: 'simon', usage_date: Time.zone.today)
+      usage.lock!
+      raise Error.new(:daily_limit, '오늘 Simon 이용 횟수를 모두 사용했습니다.') if usage.count >= GAMES_PER_DAY
+
+      usage.increment!(:count)
     end
   end
 end

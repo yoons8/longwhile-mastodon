@@ -33,3 +33,8 @@ docker run --rm --env-file battle_bot/.env --network host mastodon-battle-bot
 
 For production, run this process under systemd or a dedicated container with an
 automatic restart policy.
+
+The bot records the most recently replied-to mention in `battle_bot/.state.json`.
+This ignored local file prevents a restart from replying to the same mention
+again. Do not delete it unless you intentionally want the bot to reprocess the
+recent mention notifications.

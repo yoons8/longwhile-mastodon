@@ -25,10 +25,12 @@ RSpec.describe Game::BattleService do
 
   describe 'challenge lifecycle' do
     it 'creates, accepts, and cancels a battle without rewards' do
+      challenger.update!(display_name: '신청자')
+      opponent.update!(display_name: '상대방')
       response = process(challenger, '@fighter_two @battle_bot [전투]', targets: [opponent])
       battle = GameBattle.last
 
-      expect(response[:text]).to include('전투를 신청')
+      expect(response[:text]).to include('신청자 님이 상대방 님에게 전투를 신청')
       expect(battle.state).to eq('pending')
 
       process(opponent, '@fighter_one @battle_bot [승낙]', targets: [challenger])
@@ -51,14 +53,16 @@ RSpec.describe Game::BattleService do
       expect(GameBattle.count).to eq(1)
     end
 
-    it 'decreases challenger reputation when rejected' do
+    it 'decreases rejecting opponent reputation when rejected' do
       GameProfile.create!(account: challenger, reputation: 3)
+      GameProfile.create!(account: opponent, reputation: 3)
       process(challenger, '@fighter_two @battle_bot [전투]', targets: [opponent])
 
       process(opponent, '@fighter_one @battle_bot [거절]', targets: [challenger])
 
       expect(GameBattle.last.state).to eq('rejected')
-      expect(GameProfile.find_by(account: challenger).reputation).to eq(2)
+      expect(GameProfile.find_by(account: challenger).reputation).to eq(3)
+      expect(GameProfile.find_by(account: opponent).reputation).to eq(2)
     end
   end
 
@@ -113,8 +117,15 @@ RSpec.describe Game::BattleService do
       expect(GameProfile.find_by(account: challenger)).to have_attributes(currency: 10, reputation: 2)
       expect(GameProfile.find_by(account: opponent)).to have_attributes(currency: 2, reputation: 0)
 
+      kill = process(challenger, '@battle_bot [살해]')
+      expect(kill[:text]).to include('마지막 일격')
+      expect(kill[:text]).to include('@fighter_one 님이 @fighter_two 님에게 마지막 일격')
+      expect(kill[:text]).to include('@fighter_two 님은')
+      expect(battle.reload.kill_used_at).to be_present
+
       revenge = process(opponent, '@fighter_one @battle_bot [복수]', targets: [challenger])
       expect(revenge[:text]).to include('복수 공격이 시작')
+      expect(revenge[:text]).to include('@fighter_one은 [공격] 또는 [방어]를 입력')
       expect(GameBattle.last).to have_attributes(state: 'active', revenge_of: battle, challenger_account: opponent)
       expect(GameBattle.last.turns.first).to have_attributes(challenger_action: 'attack')
       expect(battle.reload.revenge_used_at).to be_present
@@ -146,6 +157,19 @@ RSpec.describe Game::BattleService do
       expect(second_response).to eq(first_response)
       expect(GameBattle.count).to eq(1)
       expect(GameBotEvent.count).to eq(1)
+    end
+  end
+
+  describe '[살해]' do
+    it 'only permits the winner to use it for their most recent battle' do
+      earlier_win = GameBattle.create!(challenger_account: challenger, opponent_account: opponent, winner_account: challenger, loser_account: opponent, state: 'finished', challenger_hp: 10, opponent_hp: 0, finished_at: 2.minutes.ago)
+      newer_loss = GameBattle.create!(challenger_account: challenger, opponent_account: opponent, winner_account: opponent, loser_account: challenger, state: 'finished', challenger_hp: 0, opponent_hp: 10, finished_at: 1.minute.ago)
+
+      response = process(challenger, '@fighter_two @battle_bot [살해]', targets: [opponent])
+
+      expect(response[:text]).to include('[살해]를 사용할 수 있는 전투가 없습니다')
+      expect(earlier_win.reload.kill_used_at).to be_nil
+      expect(newer_loss.reload.kill_used_at).to be_nil
     end
   end
 

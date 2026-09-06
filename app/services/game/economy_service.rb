@@ -3,7 +3,7 @@
 module Game
   class EconomyService
     # 야바위 게임의 계정당 하루 최대 도전 횟수입니다.
-    SHELL_GAMES_PER_DAY = 30
+    SHELL_GAMES_PER_DAY = 3
     # 아이템 판매 시 기준 가격에 적용할 비율입니다. (0.5 = 기준 가격의 50%)
     SALE_RATE = 0.5
     # 상점주인 대화 1회 성공 시 지급할 재화입니다.
@@ -76,8 +76,8 @@ module Game
       raise Error.new(:invalid_cup, '컵은 1부터 3까지 선택해야 합니다.') unless (1..3).cover?(cup)
 
       with_locked_profile do |profile|
-        use_daily!(profile, 'shell_game', SHELL_GAMES_PER_DAY)
         raise Error.new(:insufficient_currency, '재화가 부족합니다.') if bet > profile.currency
+        use_daily!(profile, 'shell_game', SHELL_GAMES_PER_DAY)
 
         answer = SecureRandom.random_number(3) + 1
         won = cup == answer
