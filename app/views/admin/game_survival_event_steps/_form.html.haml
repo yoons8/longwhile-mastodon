@@ -1,0 +1,11 @@
+.fields-group
+  = form.input :position, label: '단계 순서', input_html: { min: 1 }, wrapper: :with_block_label
+  = form.input :title, label: '단계 제목', wrapper: :with_block_label
+  = form.input :description, label: '상황 설명', wrapper: :with_block_label
+  - choices = Array(form.object.choices).first(3)
+  - choices += Array.new(3 - choices.size, '')
+  - choices.each_with_index do |choice, index|
+    .input.with_block_label
+      = label_tag "game_survival_event_step_choices_#{index}", "선택지 #{index + 1}"
+      = text_field_tag 'game_survival_event_step[choices][]', choice, id: "game_survival_event_step_choices_#{index}", required: true
+  = form.input :survival_choice, collection: [['선택지 1', 0], ['선택지 2', 1], ['선택지 3', 2]], label: '생존 선택지', hint: '이 선택지를 고른 사용자만 다음 단계로 이동합니다.', wrapper: :with_block_label

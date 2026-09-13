@@ -41,6 +41,8 @@ SimpleNavigation::Configuration.run do |navigation|
       s.item :custom_emojis, safe_join([material_symbol('mood'), t('admin.custom_emojis.title')]), admin_custom_emojis_path, highlights_on: %r{/admin/custom_emojis}, if: -> { current_user.can?(:manage_custom_emojis) }
       s.item :settings, safe_join([material_symbol('tune'), t('admin.settings.title')]), admin_settings_path, highlights_on: %r{/admin/settings}, if: -> { current_user.can?(:manage_settings) }
       s.item :game, safe_join([material_symbol('extension'), '게임 관리']), admin_game_items_path, highlights_on: %r{/admin/game_}, if: -> { current_user.can?(:manage_settings) }
+      s.item :game_survival_events, safe_join([material_symbol('star'), '생존 이벤트']), admin_game_survival_events_path, highlights_on: %r{/admin/game_survival_events}, if: -> { current_user.can?(:manage_settings) }
+      s.item :game_bingo_events, safe_join([material_symbol('extension'), '빙고 이벤트']), admin_game_bingo_events_path, highlights_on: %r{/admin/game_bingo_events}, if: -> { current_user.can?(:manage_settings) }
       s.item :game_players, safe_join([material_symbol('groups'), '게임 사용자']), admin_game_players_path, highlights_on: %r{/admin/game_players}, if: -> { current_user.can?(:manage_settings) }
     end
 

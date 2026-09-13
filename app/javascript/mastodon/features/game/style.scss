@@ -111,7 +111,7 @@
     border-color: rgb(91 91 214 / 14%);
     border-radius: 9px;
     background: linear-gradient(180deg, #fff, #f8f8ff);
-    color: var(--secondary-text-color);
+    color: var(--game-indigo);
     font-size: 13px;
     font-weight: 700;
     transition: all 0.3s ease;
@@ -158,6 +158,382 @@
   background:
     radial-gradient(circle at 100% 0, rgb(91 91 214 / 7%), transparent 38%),
     var(--background-color);
+}
+
+.game-page__survival-event {
+  position: relative;
+  margin-bottom: 22px;
+  overflow: hidden;
+  padding: 18px;
+  border: 1px solid rgb(220 90 82 / 28%);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgb(255 240 237 / 88%), rgb(238 239 255 / 72%));
+  background-position: center;
+  background-size: cover;
+
+  &.has-background {
+    header {
+      > span { color: #ffd2cc; }
+      h3 { color: #fff; }
+      p, small { color: rgb(255 255 255 / 82%); }
+    }
+
+    .game-page__survival-step {
+      border-left-color: #c9c8ff;
+      background: rgb(12 12 20 / 64%);
+
+      strong { color: #fff; }
+      p { color: rgb(255 255 255 / 78%); }
+    }
+  }
+
+  &.is-eliminating {
+    animation: game-survival-shake 460ms ease-in-out;
+
+    .game-page__survival-choice:not(.is-eliminated) {
+      animation: game-survival-choice-fade 700ms ease forwards;
+    }
+
+    .game-page__survival-result.is-eliminated {
+      animation: game-survival-result-reveal 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    }
+  }
+
+  &.is-walking {
+    animation: game-survival-walk 600ms ease-in-out 5;
+
+    &.has-background {
+      animation:
+        game-survival-walk 600ms ease-in-out 5,
+        game-survival-background-walk 3s linear;
+    }
+  }
+
+  header {
+    margin-bottom: 14px;
+
+    > span {
+      color: #b54d48;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+    }
+
+    h3 {
+      margin: 5px 0;
+      color: #27272f;
+      font-size: 18px;
+    }
+
+    p {
+      margin: 0;
+      color: #555563;
+      line-height: 1.5;
+    }
+
+    small {
+      display: block;
+      margin-top: 6px;
+      color: #777784;
+    }
+  }
+}
+
+.game-page__survival-choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.game-page__survival-start {
+  display: grid;
+  min-height: 112px;
+  place-items: center;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 78%);
+  color: #34343e;
+  text-align: center;
+
+  p {
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  span {
+    color: var(--game-indigo);
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  button {
+    border-color: var(--game-indigo);
+    background: var(--game-indigo);
+    color: #fff;
+    font-weight: 800;
+  }
+}
+
+.game-page__survival-event.has-background .game-page__survival-start {
+  background: rgb(12 12 20 / 72%);
+  color: #fff;
+}
+
+.game-page__survival-step {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--game-indigo);
+  background: rgb(255 255 255 / 62%);
+
+  strong {
+    color: #27272f;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: #555563;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+}
+
+.game-page button.game-page__survival-choice {
+  display: grid;
+  min-height: 86px;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  background: #fff;
+  text-align: left;
+
+  b {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--game-indigo-soft);
+    color: var(--game-indigo);
+  }
+
+  span {
+    line-height: 1.4;
+  }
+
+  em {
+    grid-column: 1 / -1;
+    color: inherit;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 800;
+    text-align: center;
+  }
+
+  &.is-survival {
+    border-color: #287a50;
+    background: #e8f5ec;
+    color: #1e633f;
+    opacity: 1;
+  }
+
+  &.is-eliminated {
+    border-color: #bd4d48;
+    background: #fff0ed;
+    color: #a43e3a;
+    opacity: 1;
+  }
+
+  &.is-walking-choice {
+    border-color: var(--game-indigo);
+    background: var(--game-indigo-soft);
+    box-shadow: 0 0 0 3px rgb(91 91 214 / 18%);
+    color: var(--game-indigo);
+    opacity: 1;
+  }
+}
+
+.game-page__survival-walking-status {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: center;
+  color: var(--game-indigo);
+  font-size: 13px;
+  font-weight: 800;
+  background: #000000;
+  position: absolute;
+  z-index: 10;
+  left: 50%;
+  top: 50%;
+  height: 100%;
+  width: 100%;
+  transform: translate(-50%, -50%);
+  transition: all .3s;
+
+  span {
+    letter-spacing: 3px;
+    animation: game-survival-steps 600ms ease-in-out infinite alternate;
+  }
+}
+
+.game-page__survival-result {
+  margin: 12px 0 0;
+  font-weight: 800;
+  text-align: center;
+
+  &.is-survived { color: #287a50; }
+  &.is-eliminated { color: #bd4d48; }
+}
+
+@keyframes game-survival-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+
+@keyframes game-survival-walk {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-4px) rotate(-0.15deg); }
+  50% { transform: translateY(2px); }
+  75% { transform: translateY(-3px) rotate(0.15deg); }
+}
+
+@keyframes game-survival-background-walk {
+  from { background-position: center 48%; }
+  to { background-position: center 53%; }
+}
+
+@keyframes game-survival-steps {
+  from {
+    opacity: 0.35;
+    transform: translateY(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(2px);
+  }
+}
+
+@keyframes game-survival-choice-fade {
+  to {
+    filter: grayscale(1);
+    opacity: 0.22;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes game-survival-result-reveal {
+  from {
+    filter: blur(7px);
+    opacity: 0;
+    transform: scale(1.18);
+  }
+
+  to {
+    filter: blur(0);
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.game-page__survival-reward {
+  display: block;
+  margin-top: 5px;
+  color: var(--game-indigo);
+  font-size: 13px;
+}
+
+.game-page__bingo-event {
+  margin-bottom: 22px;
+  padding: 18px;
+  border: 1px solid rgb(91 91 214 / 24%);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #f7f7ff, #fff);
+
+  > header {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 14px;
+
+    > span {
+      color: var(--game-indigo);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+    }
+
+    h3, p { margin: 0; }
+    p { color: var(--secondary-text-color); }
+    > strong {
+      margin-top: 4px;
+      color: var(--game-indigo);
+    }
+  }
+}
+
+.game-page__bingo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+
+  button {
+    display: grid;
+    min-height: 108px;
+    place-content: center;
+    gap: 5px;
+    padding: 10px;
+    text-align: center;
+
+    strong { font-size: 13px; }
+    small {
+      color: var(--secondary-text-color);
+      line-height: 1.35;
+    }
+
+    &.is-checked {
+      border-color: #287a50;
+      background: #e8f5ec;
+      color: #287a50;
+      opacity: 1;
+
+      strong { font-size: 25px; }
+    }
+  }
+}
+
+.game-page__bingo-submit {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.7fr) minmax(180px, 1.5fr) auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 9px;
+  background: var(--game-indigo-soft);
+
+  label {
+    display: grid;
+    gap: 3px;
+
+    span {
+      color: var(--game-indigo);
+      font-size: 11px;
+    }
+  }
+
+  input { padding: 9px; }
+
+  > button {
+    border-color: var(--game-indigo);
+    background: var(--game-indigo);
+    color: #fff;
+    font-weight: 700;
+  }
 }
 
 .game-page__shop + .game-page__shop {
@@ -1705,6 +2081,14 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .game-page__survival-choices {
+    grid-template-columns: 1fr;
+  }
+
+  .game-page__bingo-submit {
+    grid-template-columns: 1fr;
+  }
+
   .game-page__gamble-list {
     grid-template-columns: 1fr;
   }
@@ -1784,6 +2168,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .game-page__survival-event.is-eliminating,
+  .game-page__survival-event.is-eliminating .game-page__survival-choice,
+  .game-page__survival-event.is-eliminating .game-page__survival-result {
+    animation: none;
+  }
+
+  .game-page__survival-event.is-walking,
+  .game-page__survival-event.is-walking .game-page__survival-walking-status span {
+    animation: none;
+  }
+
   .game-page__tabs button,
   .game-page__tabs button::after {
     transition: none;

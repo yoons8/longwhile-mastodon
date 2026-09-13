@@ -1,0 +1,27 @@
+- content_for :page_title do
+  #{@event.title} · 단계 관리
+- content_for :heading_actions do
+  = link_to '이벤트 목록', admin_game_survival_events_path, class: 'button button-tertiary'
+  = link_to '새 단계', new_admin_game_survival_event_step_path(@event), class: 'button'
+
+- if @steps.empty?
+  %p 이벤트를 상점에 노출하려면 단계를 하나 이상 추가해야 합니다.
+- else
+  %table.table
+    %thead
+      %tr
+        %th 순서
+        %th 제목
+        %th 선택지
+        %th 생존 선택지
+        %th
+    %tbody
+      - @steps.each do |step|
+        %tr
+          %td= step.position
+          %td= step.title
+          %td= step.choices.join(' / ')
+          %td= step.choices[step.survival_choice]
+          %td
+            = table_link_to 'edit', '수정', edit_admin_game_survival_event_step_path(@event, step)
+            = table_link_to 'delete', '삭제', admin_game_survival_event_step_path(@event, step), method: :delete, data: { confirm: '삭제하시겠습니까?' }

@@ -1,0 +1,5 @@
+- content_for :page_title do
+  새 빙고 항목
+= simple_form_for @item, url: admin_game_bingo_event_items_path(@event) do |form|
+  = render 'form', form: form
+  = form.button :button, '추가', type: :submit

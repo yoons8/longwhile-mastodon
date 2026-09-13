@@ -1,0 +1,29 @@
+- content_for :page_title do
+  빙고 이벤트
+- content_for :heading_actions do
+  = link_to '새 빙고 이벤트', new_admin_game_bingo_event_path, class: 'button'
+
+%table.table
+  %thead
+    %tr
+      %th 제목
+      %th 활성 항목
+      %th 참여자
+      %th 제출 링크
+      %th 상태
+      %th
+  %tbody
+    - @events.each do |event|
+      %tr
+        %td= event.title
+        %td= event.items.count(&:active?)
+        %td= event.boards.length
+        %td= event.boards.sum { |board| board.submissions.length }
+        %td= event.available? ? '진행 중' : '대기/종료'
+        %td
+          = table_link_to 'list', '항목 관리', admin_game_bingo_event_items_path(event)
+          = table_link_to 'link', '제출 링크', admin_game_bingo_event_submissions_path(event)
+          = table_link_to 'edit', '수정', edit_admin_game_bingo_event_path(event)
+          - if event.active?
+            = table_link_to 'block', '비활성화', admin_game_bingo_event_path(event), method: :delete, data: { confirm: '비활성화하시겠습니까?' }
+= paginate @events

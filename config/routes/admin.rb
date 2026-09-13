@@ -96,6 +96,14 @@ namespace :admin do
   resources :rules, only: [:index, :new, :create, :edit, :update, :destroy]
 
   resources :game_items, except: :show
+  resources :game_survival_events, except: :show do
+    post :reset_entries, on: :member
+    resources :steps, controller: 'game_survival_event_steps', except: :show
+  end
+  resources :game_bingo_events, except: :show do
+    resources :items, controller: 'game_bingo_items', except: :show
+    resources :submissions, controller: 'game_bingo_submissions', only: :index
+  end
   resources :game_players, only: [:index, :show, :update]
 
   resources :webhooks do

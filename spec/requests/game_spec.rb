@@ -56,4 +56,48 @@ RSpec.describe 'Game' do
       expect(response.parsed_body.dig('shops', 0, 'items')).to be_empty
     end
   end
+
+  describe 'POST /game/survival_events/:id/choose' do
+    let(:user) { Fabricate(:user) }
+    let(:reward_items) { Array.new(7) { |index| GameItem.create!(name: "생존 보상 #{index}", base_price: 0, item_type: 'miscellaneous') } }
+    let(:event) { GameSurvivalEvent.create!(title: '세 갈래 길', failure_messages: Array.new(7) { |index| "탈락 문구 #{index}" }, reward_item_ids: reward_items.map(&:id)) }
+
+    before do
+      event.steps.create!(position: 1, title: '첫 번째 길', choices: %w(왼쪽 가운데 오른쪽), survival_choice: 1)
+      event.steps.create!(position: 2, title: '두 번째 길', choices: %w(산 강 들판), survival_choice: 2)
+      sign_in user
+    end
+
+    it 'moves a survivor to the next step and completes the final step' do
+      post choose_game_survival_event_path(event), params: { choice: 1 }, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body).to include('survived' => true, 'status' => 'in_progress', 'current_step' => 1)
+
+      post choose_game_survival_event_path(event), params: { choice: 2 }, as: :json
+
+      expect(response.parsed_body).to include('survived' => true, 'status' => 'completed', 'current_step' => 2)
+      expect(event.entries.find_by(account: user.account).results.size).to eq(2)
+      expect(GameInventory.find_by(account: user.account, game_item: reward_items).quantity).to eq(1)
+    end
+
+    it 'stops the event immediately after an eliminating choice' do
+      post choose_game_survival_event_path(event), params: { choice: 0 }, as: :json
+      post choose_game_survival_event_path(event), params: { choice: 1 }, as: :json
+
+      expect(response).to have_http_status(422)
+      expect(response.parsed_body['code']).to eq('event_finished')
+      expect(event.entries.where(account: user.account).count).to eq(1)
+      expect(event.entries.find_by(account: user.account).outcome_message).to start_with('탈락 문구')
+    end
+
+    it 'rejects inactive events' do
+      event.update!(active: false)
+
+      post choose_game_survival_event_path(event), params: { choice: 1 }, as: :json
+
+      expect(response).to have_http_status(422)
+      expect(response.parsed_body['code']).to eq('event_unavailable')
+    end
+  end
 end

@@ -1,0 +1,5 @@
+- content_for :page_title do
+  새 생존 이벤트
+= simple_form_for @event, url: admin_game_survival_events_path, html: { multipart: true } do |form|
+  = render 'form', form: form, game_items: @game_items
+  = form.button :button, '등록', type: :submit

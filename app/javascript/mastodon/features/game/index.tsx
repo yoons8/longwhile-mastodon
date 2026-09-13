@@ -34,12 +34,58 @@ interface GameShop {
   items: GameItem[];
 }
 
+interface SurvivalEventResult {
+  choice: number;
+  survived: boolean;
+  survival_choice: number;
+  message: string;
+  reward_item: { id: number; name: string; image: string | null } | null;
+}
+
+interface SurvivalEvent {
+  id: number;
+  title: string;
+  description: string;
+  background_image: string | null;
+  ends_at: string | null;
+  current_step: number;
+  total_steps: number;
+  status: 'not_started' | 'in_progress' | 'completed' | 'eliminated';
+  step: {
+    id: number;
+    title: string;
+    description: string;
+    choices: string[];
+  };
+  result: SurvivalEventResult | null;
+}
+
 interface GameState {
   profile: { currency: number; reputation: number };
   daily_usage: Partial<Record<'shell_game' | 'simon' | 'blackjack', number>>;
   inventory: GameItem[];
   shops: GameShop[];
+  survival_events: SurvivalEvent[];
+  bingo_events: BingoEvent[];
   blackjack?: BlackjackState | null;
+}
+
+interface BingoCell {
+  id: number;
+  title: string;
+  description: string;
+  checked: boolean;
+  url: string | null;
+}
+
+interface BingoEvent {
+  id: number;
+  title: string;
+  description: string;
+  ends_at: string | null;
+  bingo_count: number;
+  completed: boolean;
+  cells: BingoCell[];
 }
 
 interface SimonState {
@@ -123,6 +169,17 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
   const [simonAccepting, setSimonAccepting] = useState(false);
   const [simonMessage, setSimonMessage] = useState('시작 버튼을 누르세요.');
   const [blackjack, setBlackjack] = useState<BlackjackState | null>(null);
+  const [outcomeEventId, setOutcomeEventId] = useState<number | null>(null);
+  const [openedEventIds, setOpenedEventIds] = useState<number[]>([]);
+  const [walkingSelection, setWalkingSelection] = useState<{
+    eventId: number;
+    choice: number;
+  } | null>(null);
+  const [selectedBingoCell, setSelectedBingoCell] = useState<{
+    eventId: number;
+    cell: BingoCell;
+  } | null>(null);
+  const [bingoUrl, setBingoUrl] = useState('');
   const dailyUsage = state?.daily_usage ?? {};
   const shellRemaining = Math.max(
     0,
@@ -235,6 +292,69 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
       setBusy(false);
     }
   }, [bet, busy, cup, loadState]);
+
+  const chooseSurvivalEvent = useCallback(
+    async (event: SurvivalEvent, choice: number) => {
+      if (busy || event.result) return;
+
+      setBusy(true);
+      setWalkingSelection({ eventId: event.id, choice });
+      setMessage(`${event.title} — 선택한 길을 따라 이동하고 있습니다…`);
+      try {
+        await delay(3000);
+        setWalkingSelection(null);
+        const response = await api().post<{
+          survived: boolean;
+          message: string;
+          status: 'in_progress' | 'completed' | 'eliminated';
+        }>(`/game/survival_events/${event.id}/choose`, { choice });
+        setMessage(`${event.title} — ${response.data.message}`);
+        if (response.data.status === 'eliminated')
+          setOutcomeEventId(event.id);
+        await loadState();
+        if (response.data.status !== 'in_progress') {
+          await delay(1800);
+          setOutcomeEventId(null);
+          setOpenedEventIds((current) =>
+            current.filter((eventId) => eventId !== event.id),
+          );
+        }
+      } catch (error) {
+        setMessage(errorMessage(error));
+      } finally {
+        setWalkingSelection(null);
+        setBusy(false);
+      }
+    },
+    [busy, loadState],
+  );
+
+  const submitBingoLink = useCallback(async () => {
+    if (busy || !selectedBingoCell || !bingoUrl.trim()) return;
+
+    setBusy(true);
+    try {
+      const response = await api().post<BingoEvent>(
+        `/game/bingo_events/${selectedBingoCell.eventId}/submit`,
+        {
+          game_bingo_item_id: selectedBingoCell.cell.id,
+          url: bingoUrl.trim(),
+        },
+      );
+      setMessage(
+        response.data.bingo_count > 0
+          ? `빙고 ${response.data.bingo_count}줄 완성!`
+          : `${selectedBingoCell.cell.title} 칸을 확인했습니다.`,
+      );
+      setSelectedBingoCell(null);
+      setBingoUrl('');
+      await loadState();
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }, [bingoUrl, busy, loadState, selectedBingoCell]);
 
   const showSequence = useCallback(async (nextSimon: SimonState) => {
     setSimonAccepting(false);
@@ -483,6 +603,199 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
         >
           {tab === 'shop' ? (
             <>
+              {state?.survival_events.map((event) => (
+                <section
+                  className={`game-page__survival-event${outcomeEventId === event.id ? ' is-eliminating' : ''}${walkingSelection?.eventId === event.id ? ' is-walking' : ''}${event.background_image ? ' has-background' : ''}`}
+                  style={
+                    event.background_image
+                      ? {
+                          backgroundImage: `linear-gradient(135deg, rgb(20 20 28 / 82%), rgb(42 30 52 / 72%)), url(${event.background_image})`,
+                        }
+                      : undefined
+                  }
+                  key={event.id}
+                >
+                  <header>
+                    <span>
+                      EVENT · SURVIVAL ·{' '}
+                      {Math.min(event.current_step + 1, event.total_steps)} /{' '}
+                      {event.total_steps} 단계
+                    </span>
+                    <h3>{event.title}</h3>
+                    <p>{event.description}</p>
+                    {event.ends_at && (
+                      <small>
+                        {new Date(event.ends_at).toLocaleString()}까지
+                      </small>
+                    )}
+                  </header>
+                  {event.status !== 'in_progress' &&
+                  !openedEventIds.includes(event.id) &&
+                  outcomeEventId !== event.id ? (
+                    <div className='game-page__survival-start'>
+                      {event.status === 'not_started' ? (
+                        <>
+                          <p>
+                            총 {event.total_steps}단계의 선택을 통과해
+                            살아남으세요.
+                          </p>
+                          <button
+                            type='button'
+                            disabled={busy}
+                            onClick={() => {
+                              setOpenedEventIds((current) => [
+                                ...current,
+                                event.id,
+                              ]);
+                              setMessage(
+                                `${event.title} — 첫 번째 선택을 시작합니다.`,
+                              );
+                            }}
+                          >
+                            이벤트 시작
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <strong>
+                            {event.status === 'completed'
+                              ? '이벤트 완료'
+                              : '이벤트 종료'}
+                          </strong>
+                          <p>{event.result?.message}</p>
+                          {event.result?.reward_item && (
+                            <span>
+                              획득 아이템 · {event.result.reward_item.name}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className='game-page__survival-step'>
+                        <strong>{event.step.title}</strong>
+                        <p>{event.step.description}</p>
+                      </div>
+                      <div className='game-page__survival-choices'>
+                        {event.step.choices.map((choice, index) => {
+                          const selected = event.result?.choice === index;
+                          const survived =
+                            event.result?.survival_choice === index;
+                          const resultClass = event.result
+                            ? survived
+                              ? ' is-survival'
+                              : selected
+                                ? ' is-eliminated'
+                                : ''
+                            : '';
+                          const walkingChoice =
+                            walkingSelection?.eventId === event.id &&
+                            walkingSelection.choice === index;
+
+                          return (
+                            <button
+                              type='button'
+                              className={`game-page__survival-choice${selected ? ' is-selected' : ''}${walkingChoice ? ' is-walking-choice' : ''}${resultClass}`}
+                              disabled={busy || Boolean(event.result)}
+                              onClick={() => {
+                                void chooseSurvivalEvent(event, index);
+                              }}
+                              key={`${event.id}-${index}`}
+                            >
+                              <b>{index + 1}</b>
+                              <span>{choice}</span>
+                              {event.result && survived && <em>생존</em>}
+                              {event.result && selected && !survived && (
+                                <em>탈락</em>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {walkingSelection?.eventId === event.id && (
+                        <div
+                          className='game-page__survival-walking-status'
+                          role='status'
+                        >
+                          <span aria-hidden='true'>···</span>
+                          선택한 길을 따라 이동 중
+                        </div>
+                      )}
+                      {event.result && (
+                        <p
+                          className={`game-page__survival-result ${event.result.survived ? 'is-survived' : 'is-eliminated'}`}
+                          role='status'
+                        >
+                          {event.result.message}
+                          {event.result.reward_item && (
+                            <span className='game-page__survival-reward'>
+                              보상 · {event.result.reward_item.name}
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </section>
+              ))}
+              {state?.bingo_events.map((event) => (
+                <section className='game-page__bingo-event' key={event.id}>
+                  <header>
+                    <span>BINGO · SELF CHECK</span>
+                    <h3>{event.title}</h3>
+                    <p>{event.description}</p>
+                    <strong>
+                      {event.bingo_count > 0
+                        ? `${event.bingo_count} BINGO`
+                        : '링크로 활동을 기록해 빙고를 완성하세요.'}
+                    </strong>
+                  </header>
+                  <div className='game-page__bingo-grid'>
+                    {event.cells.map((cell) => (
+                      <button
+                        type='button'
+                        className={cell.checked ? 'is-checked' : undefined}
+                        disabled={busy || cell.checked}
+                        onClick={() => {
+                          setSelectedBingoCell({ eventId: event.id, cell });
+                          setBingoUrl('');
+                          setMessage(`${cell.title} — ${cell.description}`);
+                        }}
+                        key={cell.id}
+                      >
+                        <strong>{cell.checked ? '✓' : cell.title}</strong>
+                        {!cell.checked && <small>{cell.description}</small>}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedBingoCell?.eventId === event.id && (
+                    <div className='game-page__bingo-submit'>
+                      <label htmlFor={`bingo-link-${event.id}`}>
+                        <strong>{selectedBingoCell.cell.title}</strong>
+                        <span>인증할 링크를 입력하세요.</span>
+                      </label>
+                      <input
+                        id={`bingo-link-${event.id}`}
+                        type='url'
+                        value={bingoUrl}
+                        placeholder='https://…'
+                        disabled={busy}
+                        onChange={(event) => {
+                          setBingoUrl(event.currentTarget.value);
+                        }}
+                      />
+                      <button
+                        type='button'
+                        disabled={busy || !bingoUrl.trim()}
+                        onClick={() => void submitBingoLink()}
+                      >
+                        링크 제출하고 체크
+                      </button>
+                    </div>
+                  )}
+                </section>
+              ))}
               {state?.shops.length === 0 && (
                 <p className='game-page__empty'>
                   현재 이용 가능한 상점이 없습니다.

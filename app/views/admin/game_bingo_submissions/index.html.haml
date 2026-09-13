@@ -1,0 +1,18 @@
+- content_for :page_title do
+  #{@event.title} · 제출 링크
+
+%table.table
+  %thead
+    %tr
+      %th 사용자
+      %th 빙고 항목
+      %th 링크
+      %th 제출 시각
+  %tbody
+    - @submissions.each do |submission|
+      %tr
+        %td= submission.game_bingo_board.account.pretty_acct
+        %td= submission.game_bingo_item.title
+        %td= link_to truncate(submission.url, length: 60), submission.url, target: '_blank', rel: 'noopener noreferrer'
+        %td= l submission.created_at
+= paginate @submissions

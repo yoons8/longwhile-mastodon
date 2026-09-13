@@ -56,6 +56,14 @@ class GameController < ApplicationController
     render json: Game::SimonService.new(current_account).submit!(params[:token], params[:sequence])
   end
 
+  def choose_survival_event
+    render json: Game::SurvivalEventService.new(current_account).choose!(params[:id], params[:choice])
+  end
+
+  def submit_bingo
+    render json: Game::BingoService.new(current_account).submit!(params[:id], params[:game_bingo_item_id], params[:url])
+  end
+
   private
 
   def ensure_profile
@@ -73,7 +81,52 @@ class GameController < ApplicationController
       blackjack: Game::BlackjackService.new(current_account).state,
       inventory: inventories.map { |inventory| inventory_payload(inventory) },
       shops: [{ id: 0, name: '상점', description: '구매 가능한 아이템입니다.', shop_type: 'normal', items: items.map { |item| shop_item_payload(item) } }],
+      survival_events: survival_events_payload,
+      bingo_events: Game::BingoService.new(current_account).boards,
     }
+  end
+
+  def survival_events_payload
+    entries = GameSurvivalEventEntry.where(account: current_account).index_by(&:game_survival_event_id)
+
+    GameSurvivalEvent.active.available_at(Time.current).includes(:steps).order(starts_at: :desc, created_at: :desc).filter_map do |event|
+      steps = event.steps.to_a
+      next if steps.empty?
+
+      entry = entries[event.id]
+      step_index = entry&.current_step_index || 0
+      current_step = steps[[step_index, steps.length - 1].min]
+      last_result = entry&.results&.last
+      {
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        background_image: event.background_image.exists? ? event.background_image.url(:wide) : nil,
+        ends_at: event.ends_at,
+        current_step: step_index,
+        total_steps: steps.length,
+        status: entry&.status || 'not_started',
+        step: {
+          id: current_step.id,
+          title: current_step.title,
+          description: current_step.description,
+          choices: current_step.choices,
+        },
+        result: entry&.finished? && last_result && {
+          choice: last_result['choice'],
+          survived: last_result['survived'],
+          survival_choice: current_step.survival_choice,
+          message: entry.eliminated? ? entry.outcome_message : '모든 단계를 통과해 최종 생존했습니다!',
+          reward_item: survival_reward_payload(entry.reward_game_item),
+        },
+      }
+    end
+  end
+
+  def survival_reward_payload(item)
+    return if item.nil?
+
+    { id: item.id, name: item.name, image: item.image.exists? ? item.image.url(:small) : nil }
   end
 
   def inventory_payload(inventory)
@@ -112,6 +165,6 @@ class GameController < ApplicationController
   end
 
   def render_game_error(error)
-    render json: { error: error.message, code: error.code }, status: :unprocessable_entity
+    render json: { error: error.message, code: error.code }, status: 422
   end
 end

@@ -1,0 +1,5 @@
+- content_for :page_title do
+  이벤트 단계 수정
+= simple_form_for @step, url: admin_game_survival_event_step_path(@event, @step) do |form|
+  = render 'form', form: form
+  = form.button :button, '저장', type: :submit

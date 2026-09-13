@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_04_001000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_13_004000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -664,6 +664,50 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_04_001000) do
     t.check_constraint "state::text = ANY (ARRAY['pending'::character varying, 'active'::character varying, 'finished'::character varying, 'cancelled'::character varying, 'rejected'::character varying]::text[])", name: "game_battles_state_check"
   end
 
+  create_table "game_bingo_boards", force: :cascade do |t|
+    t.bigint "game_bingo_event_id", null: false
+    t.bigint "account_id", null: false
+    t.jsonb "item_ids", default: [], null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_game_bingo_boards_on_account_id"
+    t.index ["game_bingo_event_id", "account_id"], name: "index_game_bingo_boards_unique_player", unique: true
+    t.index ["game_bingo_event_id"], name: "index_game_bingo_boards_on_game_bingo_event_id"
+  end
+
+  create_table "game_bingo_events", force: :cascade do |t|
+    t.string "title", null: false
+    t.text "description", default: "", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "starts_at"
+    t.datetime "ends_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active", "starts_at", "ends_at"], name: "index_game_bingo_events_on_availability"
+  end
+
+  create_table "game_bingo_items", force: :cascade do |t|
+    t.bigint "game_bingo_event_id", null: false
+    t.string "title", null: false
+    t.text "description", default: "", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_bingo_event_id"], name: "index_game_bingo_items_on_game_bingo_event_id"
+  end
+
+  create_table "game_bingo_submissions", force: :cascade do |t|
+    t.bigint "game_bingo_board_id", null: false
+    t.bigint "game_bingo_item_id", null: false
+    t.text "url", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_bingo_board_id", "game_bingo_item_id"], name: "index_game_bingo_submissions_unique_cell", unique: true
+    t.index ["game_bingo_board_id"], name: "index_game_bingo_submissions_on_game_bingo_board_id"
+    t.index ["game_bingo_item_id"], name: "index_game_bingo_submissions_on_game_bingo_item_id"
+  end
+
   create_table "game_bot_events", force: :cascade do |t|
     t.string "status_id", null: false
     t.bigint "account_id", null: false
@@ -770,6 +814,72 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_04_001000) do
     t.index ["active", "shop_type"], name: "index_game_shops_on_active_and_shop_type"
     t.index ["starts_at", "ends_at"], name: "index_game_shops_on_starts_at_and_ends_at"
     t.check_constraint "min_reputation >= 0", name: "game_shops_min_reputation_nonnegative"
+  end
+
+  create_table "game_survival_event_entries", force: :cascade do |t|
+    t.bigint "game_survival_event_id", null: false
+    t.bigint "account_id", null: false
+    t.integer "choice", null: false
+    t.boolean "survived", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "current_step_index", default: 0, null: false
+    t.string "status", default: "in_progress", null: false
+    t.jsonb "results", default: [], null: false
+    t.text "outcome_message"
+    t.bigint "reward_game_item_id"
+    t.index ["account_id"], name: "index_game_survival_event_entries_on_account_id"
+    t.index ["game_survival_event_id", "account_id"], name: "index_game_survival_event_entries_unique_participant", unique: true
+    t.index ["game_survival_event_id"], name: "index_game_survival_event_entries_on_game_survival_event_id"
+    t.index ["reward_game_item_id"], name: "index_game_survival_event_entries_on_reward_game_item_id"
+    t.index ["status"], name: "index_game_survival_event_entries_on_status"
+    t.check_constraint "choice >= 0 AND choice <= 2", name: "game_survival_event_entries_choice_check"
+    t.check_constraint "current_step_index >= 0", name: "game_survival_event_entries_current_step_check"
+    t.check_constraint "status::text = ANY (ARRAY['in_progress'::character varying, 'completed'::character varying, 'eliminated'::character varying]::text[])", name: "game_survival_event_entries_status_check"
+  end
+
+  create_table "game_survival_event_rewards", force: :cascade do |t|
+    t.bigint "game_survival_event_id", null: false
+    t.bigint "game_item_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_item_id"], name: "index_game_survival_event_rewards_on_game_item_id"
+    t.index ["game_survival_event_id", "game_item_id"], name: "index_game_survival_event_rewards_unique_item", unique: true
+    t.index ["game_survival_event_id"], name: "index_game_survival_event_rewards_on_game_survival_event_id"
+  end
+
+  create_table "game_survival_event_steps", force: :cascade do |t|
+    t.bigint "game_survival_event_id", null: false
+    t.integer "position", null: false
+    t.string "title", null: false
+    t.text "description", default: "", null: false
+    t.jsonb "choices", default: [], null: false
+    t.integer "survival_choice", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_survival_event_id", "position"], name: "index_game_survival_event_steps_unique_position", unique: true
+    t.index ["game_survival_event_id"], name: "index_game_survival_event_steps_on_game_survival_event_id"
+    t.check_constraint "\"position\" >= 1", name: "game_survival_event_steps_position_check"
+    t.check_constraint "survival_choice >= 0 AND survival_choice <= 2", name: "game_survival_event_steps_survival_choice_check"
+  end
+
+  create_table "game_survival_events", force: :cascade do |t|
+    t.string "title", null: false
+    t.text "description", default: "", null: false
+    t.jsonb "choices", default: [], null: false
+    t.integer "survival_choice", default: 0, null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "starts_at"
+    t.datetime "ends_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "failure_messages", default: [], null: false
+    t.string "background_image_file_name"
+    t.string "background_image_content_type"
+    t.integer "background_image_file_size"
+    t.datetime "background_image_updated_at"
+    t.index ["active", "starts_at", "ends_at"], name: "index_game_survival_events_on_availability"
+    t.check_constraint "survival_choice >= 0 AND survival_choice <= 2", name: "game_survival_events_survival_choice_check"
   end
 
   create_table "game_transactions", force: :cascade do |t|
@@ -1622,6 +1732,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_04_001000) do
   add_foreign_key "game_battles", "accounts", column: "opponent_account_id"
   add_foreign_key "game_battles", "accounts", column: "winner_account_id"
   add_foreign_key "game_battles", "game_battles", column: "revenge_of_id"
+  add_foreign_key "game_bingo_boards", "accounts", on_delete: :cascade
+  add_foreign_key "game_bingo_boards", "game_bingo_events", on_delete: :cascade
+  add_foreign_key "game_bingo_items", "game_bingo_events", on_delete: :cascade
+  add_foreign_key "game_bingo_submissions", "game_bingo_boards", on_delete: :cascade
+  add_foreign_key "game_bingo_submissions", "game_bingo_items", on_delete: :restrict
   add_foreign_key "game_bot_events", "accounts"
   add_foreign_key "game_daily_usages", "accounts", on_delete: :cascade
   add_foreign_key "game_inventories", "accounts", on_delete: :cascade
@@ -1629,6 +1744,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_04_001000) do
   add_foreign_key "game_profiles", "accounts", on_delete: :cascade
   add_foreign_key "game_shop_items", "game_items", on_delete: :restrict
   add_foreign_key "game_shop_items", "game_shops", on_delete: :cascade
+  add_foreign_key "game_survival_event_entries", "accounts", on_delete: :cascade
+  add_foreign_key "game_survival_event_entries", "game_items", column: "reward_game_item_id", on_delete: :restrict
+  add_foreign_key "game_survival_event_entries", "game_survival_events", on_delete: :cascade
+  add_foreign_key "game_survival_event_rewards", "game_items", on_delete: :restrict
+  add_foreign_key "game_survival_event_rewards", "game_survival_events", on_delete: :cascade
+  add_foreign_key "game_survival_event_steps", "game_survival_events", on_delete: :cascade
   add_foreign_key "game_transactions", "accounts", on_delete: :cascade
   add_foreign_key "game_transactions", "game_items", on_delete: :restrict
   add_foreign_key "generated_annual_reports", "accounts"

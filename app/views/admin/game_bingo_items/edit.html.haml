@@ -1,0 +1,5 @@
+- content_for :page_title do
+  빙고 항목 수정
+= simple_form_for @item, url: admin_game_bingo_event_item_path(@event, @item) do |form|
+  = render 'form', form: form
+  = form.button :button, '저장', type: :submit

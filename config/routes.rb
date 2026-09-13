@@ -203,6 +203,8 @@ Rails.application.routes.draw do
     post :start_simon
     post :submit_simon
   end
+  post '/game/survival_events/:id/choose', to: 'game#choose_survival_event', as: :choose_game_survival_event
+  post '/game/bingo_events/:id/submit', to: 'game#submit_bingo', as: :submit_game_bingo
 
   get '/admin', to: redirect('/admin/dashboard', status: 302)
 
