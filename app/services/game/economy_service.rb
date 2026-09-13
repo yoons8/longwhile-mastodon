@@ -20,11 +20,12 @@ module Game
         item = GameItem.lock.find(game_item_id)
         raise Error.new(:unavailable, '구매할 수 없는 아이템입니다.') unless item.active? && item.min_reputation <= profile.reputation
 
-        raise Error.new(:insufficient_currency, '재화가 부족합니다.') if profile.currency < item.base_price
+        price = item.effective_price
+        raise Error.new(:insufficient_currency, '재화가 부족합니다.') if profile.currency < price
 
-        profile.update!(currency: profile.currency - item.base_price)
+        profile.update!(currency: profile.currency - price)
         change_inventory!(item, 1)
-        record!(action_type: 'purchase', item: item, currency: -item.base_price, quantity: 1)
+        record!(action_type: 'purchase', item: item, currency: -price, quantity: 1)
 
         { currency: profile.currency, item: item.name, quantity: 1 }
       end
@@ -38,7 +39,7 @@ module Game
         inventory = GameInventory.lock.find_by(account: @account, game_item: item)
         raise Error.new(:not_owned, '판매할 아이템이 부족합니다.') if inventory.nil? || inventory.quantity < quantity
 
-        proceeds = (item.base_price * SALE_RATE).floor * quantity
+        proceeds = (item.effective_price * SALE_RATE).floor * quantity
         inventory.update!(quantity: inventory.quantity - quantity)
         profile.update!(currency: profile.currency + proceeds)
         record!(action_type: 'sale', item: item, currency: proceeds, quantity: -quantity)

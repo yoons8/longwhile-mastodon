@@ -506,6 +506,27 @@
   }
 }
 
+.game-page__bingo-rewards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+
+  span {
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #ececf8;
+    color: var(--secondary-text-color);
+    font-size: 11px;
+
+    &.is-achieved {
+      background: #e8f5ec;
+      color: #287a50;
+      font-weight: 700;
+    }
+  }
+}
+
 .game-page__bingo-submit {
   display: grid;
   grid-template-columns: minmax(130px, 0.7fr) minmax(180px, 1.5fr) auto;
@@ -737,6 +758,29 @@
 .game-page__item-price {
   color: var(--secondary-text-color) !important;
   font-variant-numeric: tabular-nums;
+}
+
+.game-page__market-change {
+  font-size: 11px !important;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+
+  &--up {
+    color: #d9475c !important;
+  }
+
+  &--down {
+    color: #3478d4 !important;
+  }
+
+  &--flat {
+    color: var(--secondary-text-color) !important;
+  }
+}
+
+.game-page__market-updated-at {
+  color: var(--secondary-text-color) !important;
+  font-size: 10px !important;
 }
 
 .game-page__item-usage {

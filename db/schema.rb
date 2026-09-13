@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_13_004000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_13_007000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -694,7 +694,47 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_13_004000) do
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "reward_game_item_id"
+    t.integer "reward_item_quantity", default: 0, null: false
+    t.bigint "reward_currency", default: 0, null: false
+    t.integer "reward_reputation", default: 0, null: false
     t.index ["game_bingo_event_id"], name: "index_game_bingo_items_on_game_bingo_event_id"
+    t.index ["reward_game_item_id"], name: "index_game_bingo_items_on_reward_game_item_id"
+    t.check_constraint "reward_item_quantity >= 0 AND reward_currency >= 0 AND reward_reputation >= 0", name: "game_bingo_items_reward_values_nonnegative"
+  end
+
+  create_table "game_bingo_reward_grants", force: :cascade do |t|
+    t.bigint "game_bingo_board_id", null: false
+    t.bigint "game_bingo_reward_id", null: false
+    t.bigint "game_item_id"
+    t.integer "bingo_count", null: false
+    t.integer "item_quantity", default: 0, null: false
+    t.bigint "currency", default: 0, null: false
+    t.integer "reputation", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_bingo_board_id", "game_bingo_reward_id"], name: "index_game_bingo_reward_grants_unique_level", unique: true
+    t.index ["game_bingo_board_id"], name: "index_game_bingo_reward_grants_on_game_bingo_board_id"
+    t.index ["game_bingo_reward_id"], name: "index_game_bingo_reward_grants_on_game_bingo_reward_id"
+    t.index ["game_item_id"], name: "index_game_bingo_reward_grants_on_game_item_id"
+    t.check_constraint "bingo_count >= 1 AND bingo_count <= 8", name: "game_bingo_reward_grants_count_range"
+    t.check_constraint "item_quantity >= 0 AND currency >= 0 AND reputation >= 0", name: "game_bingo_reward_grants_values_nonnegative"
+  end
+
+  create_table "game_bingo_rewards", force: :cascade do |t|
+    t.bigint "game_bingo_event_id", null: false
+    t.integer "bingo_count", null: false
+    t.bigint "game_item_id"
+    t.integer "item_quantity", default: 0, null: false
+    t.bigint "currency", default: 0, null: false
+    t.integer "reputation", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_bingo_event_id", "bingo_count"], name: "index_game_bingo_rewards_unique_level", unique: true
+    t.index ["game_bingo_event_id"], name: "index_game_bingo_rewards_on_game_bingo_event_id"
+    t.index ["game_item_id"], name: "index_game_bingo_rewards_on_game_item_id"
+    t.check_constraint "bingo_count >= 1 AND bingo_count <= 8", name: "game_bingo_rewards_count_range"
+    t.check_constraint "item_quantity >= 0 AND currency >= 0 AND reputation >= 0", name: "game_bingo_rewards_values_nonnegative"
   end
 
   create_table "game_bingo_submissions", force: :cascade do |t|
@@ -703,9 +743,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_13_004000) do
     t.text "url", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "reward_game_item_id"
+    t.integer "reward_item_quantity", default: 0, null: false
+    t.bigint "reward_currency", default: 0, null: false
+    t.integer "reward_reputation", default: 0, null: false
+    t.datetime "rewarded_at"
     t.index ["game_bingo_board_id", "game_bingo_item_id"], name: "index_game_bingo_submissions_unique_cell", unique: true
     t.index ["game_bingo_board_id"], name: "index_game_bingo_submissions_on_game_bingo_board_id"
     t.index ["game_bingo_item_id"], name: "index_game_bingo_submissions_on_game_bingo_item_id"
+    t.index ["reward_game_item_id"], name: "index_game_bingo_submissions_on_reward_game_item_id"
+    t.check_constraint "reward_item_quantity >= 0 AND reward_currency >= 0 AND reward_reputation >= 0", name: "game_bingo_submissions_reward_values_nonnegative"
   end
 
   create_table "game_bot_events", force: :cascade do |t|
@@ -761,13 +808,25 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_13_004000) do
     t.integer "dice_count"
     t.integer "dice_sides"
     t.integer "flat_bonus", default: 0, null: false
+    t.boolean "market_enabled", default: false, null: false
+    t.bigint "market_price"
+    t.bigint "previous_market_price"
+    t.bigint "market_min_price"
+    t.bigint "market_max_price"
+    t.integer "market_volatility", default: 10, null: false
+    t.datetime "market_price_updated_at"
     t.index ["active", "item_type"], name: "index_game_items_on_active_and_item_type"
     t.index ["active", "min_reputation"], name: "index_game_items_on_active_and_min_reputation"
     t.check_constraint "base_price >= 0", name: "game_items_base_price_nonnegative"
     t.check_constraint "battle_action IS NULL OR (battle_action::text = ANY (ARRAY['attack'::character varying, 'defense'::character varying]::text[]))", name: "game_items_battle_action_check"
     t.check_constraint "dice_count IS NULL OR dice_count >= 1 AND dice_count <= 10", name: "game_items_dice_count_check"
     t.check_constraint "dice_sides IS NULL OR dice_sides >= 2 AND dice_sides <= 100", name: "game_items_dice_sides_check"
+    t.check_constraint "market_max_price IS NULL OR market_max_price >= 0", name: "game_items_market_max_price_nonnegative"
+    t.check_constraint "market_min_price IS NULL OR market_min_price >= 0", name: "game_items_market_min_price_nonnegative"
+    t.check_constraint "market_price IS NULL OR market_price >= 0", name: "game_items_market_price_nonnegative"
+    t.check_constraint "market_volatility >= 0 AND market_volatility <= 100", name: "game_items_market_volatility_range"
     t.check_constraint "min_reputation >= 0", name: "game_items_min_reputation_nonnegative"
+    t.check_constraint "previous_market_price IS NULL OR previous_market_price >= 0", name: "game_items_previous_market_price_nonnegative"
   end
 
   create_table "game_profiles", force: :cascade do |t|
@@ -1735,8 +1794,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_13_004000) do
   add_foreign_key "game_bingo_boards", "accounts", on_delete: :cascade
   add_foreign_key "game_bingo_boards", "game_bingo_events", on_delete: :cascade
   add_foreign_key "game_bingo_items", "game_bingo_events", on_delete: :cascade
+  add_foreign_key "game_bingo_items", "game_items", column: "reward_game_item_id", on_delete: :restrict
+  add_foreign_key "game_bingo_reward_grants", "game_bingo_boards", on_delete: :cascade
+  add_foreign_key "game_bingo_reward_grants", "game_bingo_rewards", on_delete: :restrict
+  add_foreign_key "game_bingo_reward_grants", "game_items", on_delete: :restrict
+  add_foreign_key "game_bingo_rewards", "game_bingo_events", on_delete: :cascade
+  add_foreign_key "game_bingo_rewards", "game_items", on_delete: :restrict
   add_foreign_key "game_bingo_submissions", "game_bingo_boards", on_delete: :cascade
   add_foreign_key "game_bingo_submissions", "game_bingo_items", on_delete: :restrict
+  add_foreign_key "game_bingo_submissions", "game_items", column: "reward_game_item_id", on_delete: :restrict
   add_foreign_key "game_bot_events", "accounts"
   add_foreign_key "game_daily_usages", "accounts", on_delete: :cascade
   add_foreign_key "game_inventories", "accounts", on_delete: :cascade

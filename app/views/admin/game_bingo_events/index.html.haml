@@ -3,27 +3,77 @@
 - content_for :heading_actions do
   = link_to '새 빙고 이벤트', new_admin_game_bingo_event_path, class: 'button'
 
-%table.table
-  %thead
-    %tr
-      %th 제목
-      %th 활성 항목
-      %th 참여자
-      %th 제출 링크
-      %th 상태
-      %th
-  %tbody
-    - @events.each do |event|
-      %tr
-        %td= event.title
-        %td= event.items.count(&:active?)
-        %td= event.boards.length
-        %td= event.boards.sum { |board| board.submissions.length }
-        %td= event.available? ? '진행 중' : '대기/종료'
-        %td
-          = table_link_to 'list', '항목 관리', admin_game_bingo_event_items_path(event)
-          = table_link_to 'link', '제출 링크', admin_game_bingo_event_submissions_path(event)
-          = table_link_to 'edit', '수정', edit_admin_game_bingo_event_path(event)
-          - if event.active?
-            = table_link_to 'block', '비활성화', admin_game_bingo_event_path(event), method: :delete, data: { confirm: '비활성화하시겠습니까?' }
+.game-bingo-admin
+  .game-bingo-admin__intro
+    %div
+      %strong BINGO EVENT MANAGER
+      %p 빙고 항목과 단계별 보상, 러너의 인증 현황을 한곳에서 관리합니다.
+    .game-bingo-admin__summary
+      %span
+        %b= @events.size
+        현재 페이지 이벤트
+      %span
+        %b= @events.count(&:available?)
+        진행 중
+      %span
+        %b= @events.sum { |event| event.boards.size }
+        참여 러너
+
+  - if @events.empty?
+    .game-bingo-admin__empty
+      %strong 아직 등록된 빙고 이벤트가 없습니다.
+      %p 첫 이벤트를 만들고 빙고 항목 9개 이상을 등록해 주세요.
+      = link_to '빙고 이벤트 만들기', new_admin_game_bingo_event_path, class: 'button'
+  - else
+    .game-bingo-admin__list
+      - @events.each do |event|
+        :ruby
+          status_key, status_label = event.admin_status
+          active_item_count = event.items.count(&:active?)
+          submission_count = event.boards.sum { |board| board.submissions.size }
+          grant_count = event.boards.sum { |board| board.reward_grants.size }
+        %article.game-bingo-admin__card
+          .game-bingo-admin__card-header
+            .game-bingo-admin__title
+              %div
+                %span{ class: "game-bingo-admin__status game-bingo-admin__status--#{status_key}" }= status_label
+                - unless event.configured?
+                  %span.game-bingo-admin__status.game-bingo-admin__status--warning 설정 필요
+              %h3= event.title
+              %p= event.description.presence || '이벤트 설명이 없습니다.'
+            .game-bingo-admin__period
+              %span 운영 기간
+              %strong
+                = event.starts_at ? l(event.starts_at, format: :short) : '즉시 시작'
+                %span →
+                = event.ends_at ? l(event.ends_at, format: :short) : '종료일 없음'
+
+          .game-bingo-admin__metrics
+            .game-bingo-admin__metric
+              %span 활성 항목
+              %strong #{active_item_count}개
+              %small= active_item_count >= 9 ? '빙고판 구성 가능' : "#{9 - active_item_count}개 더 필요"
+            .game-bingo-admin__metric
+              %span 단계별 보상
+              %strong #{event.rewards.size}단계
+              %small 1~8빙고 추가 보상
+            .game-bingo-admin__metric
+              %span 참여 러너
+              %strong #{event.boards.size}명
+              %small 인증 #{submission_count}건
+            .game-bingo-admin__metric
+              %span 보상 지급
+              %strong #{grant_count}건
+              %small 빙고 단계 보상 기준
+
+          .game-bingo-admin__actions
+            .game-bingo-admin__actions-main
+              = link_to '항목 관리', admin_game_bingo_event_items_path(event), class: 'button button-secondary'
+              = link_to '단계별 보상', admin_game_bingo_event_rewards_path(event), class: 'button button-secondary'
+              = link_to '러너 · 인증 현황', admin_game_bingo_event_submissions_path(event), class: 'button button-secondary'
+            .game-bingo-admin__actions-sub
+              = link_to '이벤트 설정', edit_admin_game_bingo_event_path(event), class: 'button button-tertiary'
+              - if event.active?
+                = link_to '비활성화', admin_game_bingo_event_path(event), method: :delete, class: 'button button-tertiary button--destructive', data: { confirm: '이 이벤트를 비활성화하시겠습니까?' }
+
 = paginate @events

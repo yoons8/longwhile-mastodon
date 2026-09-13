@@ -18,6 +18,7 @@ class GameBingoBoard < ApplicationRecord
   belongs_to :game_bingo_event, inverse_of: :boards
   belongs_to :account
   has_many :submissions, class_name: 'GameBingoSubmission', dependent: :destroy, inverse_of: :game_bingo_board
+  has_many :reward_grants, class_name: 'GameBingoRewardGrant', dependent: :destroy, inverse_of: :game_bingo_board
 
   validate :nine_cells
 

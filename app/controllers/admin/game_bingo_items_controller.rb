@@ -43,5 +43,5 @@ class Admin::GameBingoItemsController < Admin::BaseController
 
   def set_event = @event = GameBingoEvent.find(params[:game_bingo_event_id])
   def set_item = @item = @event.items.find(params[:id])
-  def resource_params = params.expect(game_bingo_item: [:title, :description, :active])
+  def resource_params = params.expect(game_bingo_item: [:title, :description, :active, :reward_game_item_id, :reward_item_quantity, :reward_currency, :reward_reputation])
 end

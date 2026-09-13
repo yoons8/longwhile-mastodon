@@ -10,7 +10,7 @@
     %tr
       %th 이름
       %th 종류
-      %th 가격
+      %th 가격 / 시세
       %th 필요 명성
       %th 상태
       %th
@@ -19,7 +19,11 @@
       %tr
         %td= item.name
         %td= item_type_labels.fetch(item.item_type, item.item_type)
-        %td= item.base_price
+        %td
+          = item.effective_price
+          - if item.market_enabled?
+            %small
+              = "(#{item.market_change_percent.positive? ? '+' : ''}#{item.market_change_percent}%)"
         %td= item.min_reputation
         %td= item.active? ? '활성' : '비활성'
         %td

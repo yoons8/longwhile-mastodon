@@ -24,6 +24,9 @@ interface GameItem {
   price?: number;
   stock?: number | null;
   sale_price?: number;
+  market_enabled?: boolean;
+  market_change_percent?: number;
+  market_price_updated_at?: string | null;
 }
 
 interface GameShop {
@@ -85,6 +88,8 @@ interface BingoEvent {
   ends_at: string | null;
   bingo_count: number;
   completed: boolean;
+  awarded_rewards: { bingo_count: number; summary: string }[];
+  reward_levels: { bingo_count: number; summary: string; achieved: boolean }[];
   cells: BingoCell[];
 }
 
@@ -342,9 +347,18 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
         },
       );
       setMessage(
-        response.data.bingo_count > 0
-          ? `빙고 ${response.data.bingo_count}줄 완성!`
-          : `${selectedBingoCell.cell.title} 칸을 확인했습니다.`,
+        response.data.awarded_rewards.length > 0
+          ? response.data.awarded_rewards
+              .map(
+                (reward) =>
+                  reward.bingo_count > 0
+                    ? `${reward.bingo_count}빙고 보상: ${reward.summary}`
+                    : reward.summary,
+              )
+              .join(' · ')
+          : response.data.bingo_count > 0
+            ? `빙고 ${response.data.bingo_count}줄 완성!`
+            : `${selectedBingoCell.cell.title} 칸을 확인했습니다.`,
       );
       setSelectedBingoCell(null);
       setBingoUrl('');
@@ -751,6 +765,15 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                         : '링크로 활동을 기록해 빙고를 완성하세요.'}
                     </strong>
                   </header>
+                  {event.reward_levels.length > 0 && (
+                    <div className='game-page__bingo-rewards'>
+                      {event.reward_levels.map((reward) => (
+                        <span className={reward.achieved ? 'is-achieved' : undefined} key={reward.bingo_count}>
+                          {reward.bingo_count}빙고 · {reward.summary}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className='game-page__bingo-grid'>
                     {event.cells.map((cell) => (
                       <button
@@ -848,6 +871,24 @@ const Game: React.FC<{ multiColumn?: boolean }> = ({ multiColumn }) => {
                           )}
                           <span className='game-page__item-price'>
                             {item.price} 재화
+                            &nbsp;
+                            {item.market_enabled && (
+                              <>
+                                <span
+                                  className={`game-page__market-change game-page__market-change--${(item.market_change_percent ?? 0) > 0 ? 'up' : (item.market_change_percent ?? 0) < 0 ? 'down' : 'flat'}`}
+                                >
+                                  {(item.market_change_percent ?? 0) > 0 && '▲ '}
+                                  {(item.market_change_percent ?? 0) < 0 && '▼ '}
+                                  {(item.market_change_percent ?? 0) === 0 && '－ '}
+                                  {Math.abs(item.market_change_percent ?? 0).toFixed(1)}%
+                                </span>
+                                {/* <span className='game-page__market-updated-at'>
+                                  {item.market_price_updated_at
+                                    ? `${new Date(item.market_price_updated_at).toLocaleString('ko-KR')} 갱신`
+                                    : '시세 시작 전'}
+                                </span> */}
+                              </>
+                            )}
                           </span>
                         </button>
                         <div className='game-page__card-actions'>

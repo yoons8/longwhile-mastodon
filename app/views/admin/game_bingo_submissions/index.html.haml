@@ -1,18 +1,76 @@
 - content_for :page_title do
-  #{@event.title} · 제출 링크
+  #{@event.title} · 러너 현황
+- content_for :heading_actions do
+  = link_to '이벤트 목록', admin_game_bingo_events_path, class: 'button button-tertiary'
+  = link_to '항목 관리', admin_game_bingo_event_items_path(@event), class: 'button button-tertiary'
+  = link_to '단계별 보상', admin_game_bingo_event_rewards_path(@event), class: 'button'
 
-%table.table
-  %thead
-    %tr
-      %th 사용자
-      %th 빙고 항목
-      %th 링크
-      %th 제출 시각
-  %tbody
-    - @submissions.each do |submission|
-      %tr
-        %td= submission.game_bingo_board.account.pretty_acct
-        %td= submission.game_bingo_item.title
-        %td= link_to truncate(submission.url, length: 60), submission.url, target: '_blank', rel: 'noopener noreferrer'
-        %td= l submission.created_at
-= paginate @submissions
+.game-bingo-progress
+  .game-bingo-progress__hero
+    %div
+      %span LIVE PROGRESS
+      %h2= @event.title
+      %p 러너가 직접 제출한 인증 링크와 실제 지급된 보상을 확인할 수 있습니다.
+    .game-bingo-progress__totals
+      %span
+        %b= @boards.size
+        참여 러너
+      %span
+        %b= @items.sum { |item| item.submissions.size }
+        달성한 칸
+      %span
+        %b= @reward_grants.size
+        빙고 보상 지급
+
+  %section.game-bingo-progress__section
+    .game-bingo-progress__section-heading
+      %div
+        %span CELL PROGRESS
+        %h3 칸별 달성 현황
+      %p 칸을 선택한 러너와 인증 링크, 지급된 칸 보상입니다.
+
+    .game-bingo-progress__item-grid
+      - @items.each_with_index do |item, index|
+        %article.game-bingo-progress__item-card
+          .game-bingo-progress__item-header
+            .game-bingo-progress__item-number= format('%02d', index + 1)
+            .game-bingo-progress__item-title
+              %h4= item.title
+              %p= item.description.presence || '인증 안내가 없습니다.'
+            %strong #{item.submissions.size}명
+          .game-bingo-progress__reward
+            %span 칸 보상
+            %b= item.reward_summary
+          .game-bingo-progress__runners
+            - if item.submissions.empty?
+              .game-bingo-progress__empty 아직 달성한 러너가 없습니다.
+            - item.submissions.sort_by(&:created_at).reverse_each do |submission|
+              .game-bingo-progress__runner
+                .game-bingo-progress__runner-info
+                  %strong= submission.game_bingo_board.account.pretty_acct
+                  %span= l submission.created_at, format: :short
+                = link_to '인증 링크 열기', submission.url, target: '_blank', rel: 'noopener noreferrer', class: 'game-bingo-progress__proof-link'
+                %small= submission.reward_summary
+
+  %section.game-bingo-progress__section
+    .game-bingo-progress__section-heading
+      %div
+        %span BINGO REWARDS
+        %h3 단계별 보상 수령 현황
+      %p 1빙고, 2빙고 등 각 단계를 최초 달성해 추가 보상을 받은 기록입니다.
+
+    - if @reward_grants.empty?
+      .game-bingo-progress__empty.game-bingo-progress__empty--large 아직 빙고 단계 보상을 받은 러너가 없습니다.
+    - else
+      .game-bingo-progress__grant-list
+        - @reward_grants.group_by(&:bingo_count).each do |bingo_count, grants|
+          .game-bingo-progress__grant-group
+            .game-bingo-progress__grant-level
+              %strong #{bingo_count} BINGO
+              %span #{grants.size}명 달성
+            .game-bingo-progress__grant-runners
+              - grants.each do |grant|
+                .game-bingo-progress__grant
+                  %strong= grant.game_bingo_board.account.pretty_acct
+                  %span= grant.summary
+                  %time= l grant.created_at, format: :short

@@ -1,0 +1,20 @@
+- content_for :page_title do
+  #{@event.title} · 단계별 보상
+- content_for :heading_actions do
+  = link_to '이벤트 목록', admin_game_bingo_events_path, class: 'button button-tertiary'
+  = link_to '새 보상', new_admin_game_bingo_event_reward_path(@event), class: 'button'
+
+%table.table
+  %thead
+    %tr
+      %th 단계
+      %th 보상
+      %th
+  %tbody
+    - @rewards.each do |reward|
+      %tr
+        %td #{reward.bingo_count}빙고
+        %td= reward.summary
+        %td
+          = table_link_to 'edit', '수정', edit_admin_game_bingo_event_reward_path(@event, reward)
+          = table_link_to 'delete', '삭제', admin_game_bingo_event_reward_path(@event, reward), method: :delete, data: { confirm: '삭제하시겠습니까?' }

@@ -102,6 +102,7 @@ namespace :admin do
   end
   resources :game_bingo_events, except: :show do
     resources :items, controller: 'game_bingo_items', except: :show
+    resources :rewards, controller: 'game_bingo_rewards', except: :show
     resources :submissions, controller: 'game_bingo_submissions', only: :index
   end
   resources :game_players, only: [:index, :show, :update]

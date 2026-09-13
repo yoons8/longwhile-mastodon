@@ -45,6 +45,6 @@ class Admin::GameItemsController < Admin::BaseController
   end
 
   def resource_params
-    params.expect(game_item: [:name, :description, :base_price, :min_reputation, :item_type, :consumable, :active, :image, :battle_action, :dice_count, :dice_sides, :flat_bonus])
+    params.expect(game_item: [:name, :description, :base_price, :min_reputation, :item_type, :consumable, :active, :image, :battle_action, :dice_count, :dice_sides, :flat_bonus, :market_enabled, :market_price, :market_min_price, :market_max_price, :market_volatility])
   end
 end

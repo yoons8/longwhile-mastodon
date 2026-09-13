@@ -45,6 +45,17 @@ RSpec.describe 'Game' do
       expect(response.parsed_body.dig('inventory', 0, 'id')).to eq(item.id)
     end
 
+    it 'returns the current market price and its change' do
+      user = Fabricate(:user)
+      GameItem.create!(name: 'Market Potion', base_price: 20, item_type: 'battle', market_enabled: true, market_price: 30, previous_market_price: 25, market_price_updated_at: Time.current)
+      sign_in user
+
+      get state_game_path, as: :json
+
+      market_item = response.parsed_body.dig('shops', 0, 'items', 0)
+      expect(market_item).to include('price' => 30, 'market_enabled' => true, 'market_change_percent' => 20.0)
+    end
+
     it 'hides shop items above the current account reputation' do
       user = Fabricate(:user)
       item = GameItem.create!(name: 'Secret', base_price: 20, item_type: 'roleplay', min_reputation: 10)

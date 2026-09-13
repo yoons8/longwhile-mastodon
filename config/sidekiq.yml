@@ -68,3 +68,7 @@
       interval: 1 hour
       class: Scheduler::AutoCloseRegistrationsScheduler
       queue: scheduler
+    game_market_price_scheduler:
+      every: '30s'
+      class: Scheduler::GameMarketPriceScheduler
+      queue: scheduler

@@ -4,24 +4,31 @@
 #
 # Table name: game_items
 #
-#  id                 :bigint(8)        not null, primary key
-#  active             :boolean          default(TRUE), not null
-#  base_price         :bigint(8)        not null
-#  battle_action      :string
-#  consumable         :boolean          default(FALSE), not null
-#  description        :text             default(""), not null
-#  dice_count         :integer
-#  dice_sides         :integer
-#  flat_bonus         :integer          default(0), not null
-#  image_content_type :string
-#  image_file_name    :string
-#  image_file_size    :integer
-#  image_updated_at   :datetime
-#  item_type          :string           not null
-#  min_reputation     :integer          default(0), not null
-#  name               :string           not null
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
+#  id                      :bigint(8)        not null, primary key
+#  active                  :boolean          default(TRUE), not null
+#  base_price              :bigint(8)        not null
+#  battle_action           :string
+#  consumable              :boolean          default(FALSE), not null
+#  description             :text             default(""), not null
+#  dice_count              :integer
+#  dice_sides              :integer
+#  flat_bonus              :integer          default(0), not null
+#  image_content_type      :string
+#  image_file_name         :string
+#  image_file_size         :integer
+#  image_updated_at        :datetime
+#  item_type               :string           not null
+#  market_enabled          :boolean          default(FALSE), not null
+#  market_max_price        :bigint(8)
+#  market_min_price        :bigint(8)
+#  market_price            :bigint(8)
+#  market_price_updated_at :datetime
+#  market_volatility       :integer          default(10), not null
+#  min_reputation          :integer          default(0), not null
+#  name                    :string           not null
+#  previous_market_price   :bigint(8)
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
 #
 class GameItem < ApplicationRecord
   include Attachmentable
@@ -47,11 +54,24 @@ class GameItem < ApplicationRecord
   validates :dice_count, numericality: { only_integer: true, in: 1..10 }, allow_nil: true
   validates :dice_sides, numericality: { only_integer: true, in: 2..100 }, allow_nil: true
   validates :flat_bonus, numericality: { only_integer: true, in: -100..100 }
+  validates :market_price, :previous_market_price, :market_min_price, :market_max_price, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :market_volatility, numericality: { only_integer: true, in: 0..100 }
   validate :battle_effect_is_consistent
+  validate :market_price_range_is_consistent
   validates_attachment :image, content_type: { content_type: IMAGE_MIME_TYPES }, size: { less_than: IMAGE_LIMIT }
 
   scope :active, -> { where(active: true) }
   scope :visible_to, ->(reputation) { active.where(game_items: { min_reputation: ..reputation }) }
+
+  def effective_price
+    market_enabled? ? (market_price || base_price) : base_price
+  end
+
+  def market_change_percent
+    return 0 if !market_enabled? || previous_market_price.to_i.zero?
+
+    (((effective_price - previous_market_price) * 100.0) / previous_market_price).round(1)
+  end
 
   private
 
@@ -62,7 +82,15 @@ class GameItem < ApplicationRecord
     errors.add(:battle_action, '은(는) 전투 아이템에만 설정할 수 있습니다.')
   end
 
+  def market_price_range_is_consistent
+    return if market_min_price.nil? || market_max_price.nil? || market_min_price <= market_max_price
+
+    errors.add(:market_max_price, '은(는) 시세 하한 이상이어야 합니다.')
+  end
+
   def normalize_battle_attributes
     self.battle_action = nil if battle_action.blank?
+    self.market_price = base_price if market_enabled? && market_price.nil?
+    self.previous_market_price = market_price if market_enabled? && previous_market_price.nil?
   end
 end

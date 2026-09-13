@@ -16,6 +16,7 @@
 class GameBingoEvent < ApplicationRecord
   has_many :items, class_name: 'GameBingoItem', dependent: :destroy, inverse_of: :game_bingo_event
   has_many :boards, class_name: 'GameBingoBoard', dependent: :destroy, inverse_of: :game_bingo_event
+  has_many :rewards, class_name: 'GameBingoReward', dependent: :destroy, inverse_of: :game_bingo_event
 
   validates :title, presence: true, length: { maximum: 100 }
   validates :description, length: { maximum: 2_000 }
@@ -26,6 +27,18 @@ class GameBingoEvent < ApplicationRecord
 
   def available?(at: Time.current)
     active? && (starts_at.nil? || starts_at <= at) && (ends_at.nil? || ends_at >= at)
+  end
+
+  def admin_status(at: Time.current)
+    return [:inactive, '비활성'] unless active?
+    return [:scheduled, '예정'] if starts_at.present? && starts_at > at
+    return [:ended, '종료'] if ends_at.present? && ends_at < at
+
+    [:active, '진행 중']
+  end
+
+  def configured?
+    items.count(&:active?) >= 9
   end
 
   private

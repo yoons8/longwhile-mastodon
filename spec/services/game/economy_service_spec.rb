@@ -32,6 +32,12 @@ RSpec.describe Game::EconomyService do
       expect(GameInventory.find_by!(account: account, game_item: item).quantity).to eq(4)
       expect(GameDailyUsage.where(account: account, action_type: 'purchase')).to be_empty
     end
+
+    it 'uses the current market price when market pricing is enabled' do
+      item.update!(market_enabled: true, market_price: 65, previous_market_price: 40)
+
+      expect { service.purchase!(item.id) }.to change { profile.reload.currency }.from(100).to(35)
+    end
   end
 
   describe '#sell!' do
@@ -44,6 +50,13 @@ RSpec.describe Game::EconomyService do
 
       expect { service.sell!(item.id, 1) }.to change { profile.reload.currency }.by(20)
       expect(GameInventory.find_by!(account: account, game_item: item).quantity).to eq(1)
+    end
+
+    it 'calculates proceeds from the current market price' do
+      item.update!(market_enabled: true, market_price: 60, previous_market_price: 40)
+      GameInventory.create!(account: account, game_item: item, quantity: 1)
+
+      expect { service.sell!(item.id, 1) }.to change { profile.reload.currency }.by(30)
     end
   end
 

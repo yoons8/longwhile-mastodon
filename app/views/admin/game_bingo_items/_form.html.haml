@@ -2,4 +2,8 @@
 .fields-group
   = form.input :title, label: '빙고 항목', wrapper: :with_block_label
   = form.input :description, label: '인증 안내', hint: '사용자가 어떤 링크를 제출해야 하는지 설명하세요.', wrapper: :with_block_label
+  = form.input :reward_game_item_id, collection: GameItem.active.order(:name), label_method: :name, value_method: :id, include_blank: '아이템 보상 없음', label: '칸 보상 아이템', wrapper: :with_block_label
+  = form.input :reward_item_quantity, label: '아이템 지급 수량', input_html: { min: 0 }, wrapper: :with_block_label
+  = form.input :reward_currency, label: '칸 달성 지급 재화', input_html: { min: 0 }, wrapper: :with_block_label
+  = form.input :reward_reputation, label: '칸 달성 지급 명성', input_html: { min: 0 }, hint: '이 칸을 최초 달성하면 즉시 지급됩니다. 빙고 줄 보상은 단계별 보상 메뉴에서 별도로 설정합니다.', wrapper: :with_block_label
   = form.input :active, as: :boolean, label: '활성화', wrapper: :with_label

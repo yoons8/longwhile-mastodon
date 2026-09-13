@@ -5,7 +5,7 @@ class Admin::GameBingoEventsController < Admin::BaseController
 
   def index
     authorize :game_admin, :index?
-    @events = GameBingoEvent.includes(:items, boards: :submissions).order(created_at: :desc).page(params[:page])
+    @events = GameBingoEvent.includes(:items, :rewards, boards: [:submissions, :reward_grants]).order(created_at: :desc).page(params[:page])
   end
 
   def new

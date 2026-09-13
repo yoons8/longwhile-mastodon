@@ -143,7 +143,7 @@ class GameController < ApplicationController
       flat_bonus: item.flat_bonus,
       consumable: item.consumable,
       quantity: inventory.quantity,
-      sale_price: (item.base_price * Game::EconomyService::SALE_RATE).floor,
+      sale_price: (item.effective_price * Game::EconomyService::SALE_RATE).floor,
     }
   end
 
@@ -159,7 +159,10 @@ class GameController < ApplicationController
       dice_sides: item.dice_sides,
       flat_bonus: item.flat_bonus,
       consumable: item.consumable,
-      price: item.base_price,
+      price: item.effective_price,
+      market_enabled: item.market_enabled?,
+      market_change_percent: item.market_change_percent,
+      market_price_updated_at: item.market_price_updated_at,
       min_reputation: item.min_reputation,
     }
   end

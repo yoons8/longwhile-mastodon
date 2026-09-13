@@ -1,0 +1,5 @@
+- content_for :page_title do
+  #{@event.title} · 보상 수정
+= simple_form_for @reward, url: admin_game_bingo_event_reward_path(@event, @reward) do |form|
+  = render 'form', form: form
+  = form.button :button, '저장', type: :submit

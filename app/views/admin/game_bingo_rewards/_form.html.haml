@@ -1,0 +1,7 @@
+= render 'shared/error_messages', object: form.object
+.fields-group
+  = form.input :bingo_count, collection: (1..8).map { |count| ["#{count}빙고", count] }, label: '달성 단계', wrapper: :with_block_label
+  = form.input :game_item_id, collection: GameItem.active.order(:name), label_method: :name, value_method: :id, include_blank: '아이템 보상 없음', label: '보상 아이템', wrapper: :with_block_label
+  = form.input :item_quantity, label: '아이템 지급 수량', input_html: { min: 0 }, wrapper: :with_block_label
+  = form.input :currency, label: '지급 재화', input_html: { min: 0 }, wrapper: :with_block_label
+  = form.input :reputation, label: '지급 명성', input_html: { min: 0 }, hint: '해당 빙고 줄 수를 최초 달성하면 한 번만 지급됩니다.', wrapper: :with_block_label
